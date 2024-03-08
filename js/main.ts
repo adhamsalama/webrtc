@@ -61,36 +61,45 @@ socket.on("log", function (array: any) {
 
 ////////////////////////////////////////////////
 
-function sendMessage(message: any) {
+function sendMessage(message: Message | any) {
   console.log("Client sending message: ", message);
   socket.emit("message", message);
 }
 
 // This client receives a message
-socket.on("message", function (message: any) {
-  console.log("Client received message:", message);
-  if (message.type === "offer") {
-    if (!isInitiator && !isStarted) {
-      maybeStart();
+socket.on(
+  "message",
+  function (message: RTCSessionDescriptionInit | CandidateMessage | "bye") {
+    console.log("Client received message:", message);
+    if ((message as RTCSessionDescription).type === "offer") {
+      if (!isInitiator && !isStarted) {
+        maybeStart();
+      }
+      localPeerConnection.setRemoteDescription(
+        new RTCSessionDescription(message as RTCSessionDescriptionInit)
+      );
+      doAnswer();
+    } else if (
+      (message as RTCSessionDescription).type === "answer" &&
+      isStarted
+    ) {
+      localPeerConnection.setRemoteDescription(
+        new RTCSessionDescription(message as RTCSessionDescriptionInit)
+      );
+    } else if (
+      (message as CandidateMessage).type === "candidate" &&
+      isStarted
+    ) {
+      let candidate = new RTCIceCandidate({
+        sdpMLineIndex: (message as CandidateMessage).label,
+        candidate: (message as CandidateMessage).candidate,
+      });
+      localPeerConnection.addIceCandidate(candidate);
+    } else if (message === "bye" && isStarted) {
+      handleRemoteHangup();
     }
-    localPeerConnection.setRemoteDescription(
-      new RTCSessionDescription(message)
-    );
-    doAnswer();
-  } else if (message.type === "answer" && isStarted) {
-    localPeerConnection.setRemoteDescription(
-      new RTCSessionDescription(message)
-    );
-  } else if (message.type === "candidate" && isStarted) {
-    let candidate = new RTCIceCandidate({
-      sdpMLineIndex: message.label,
-      candidate: message.candidate,
-    });
-    localPeerConnection.addIceCandidate(candidate);
-  } else if (message === "bye" && isStarted) {
-    handleRemoteHangup();
   }
-});
+);
 
 ////////////////////////////////////////////////////
 
@@ -165,8 +174,19 @@ function createPeerConnection() {
     return;
   }
 }
+type Message =
+  | RTCSessionDescriptionInit
+  | RTCIceCandidateInit
+  | CandidateMessage
+  | "bye";
+type CandidateMessage = {
+  type: "candidate";
+  label: number;
+  id: string;
+  candidate: string;
+};
 
-function handleIceCandidate(event: any) {
+function handleIceCandidate(event: RTCPeerConnectionIceEvent) {
   console.log("icecandidate event: ", event);
   if (event.candidate) {
     sendMessage({
