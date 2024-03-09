@@ -29,7 +29,18 @@ const localVideo = document.querySelector("#localVideo") as HTMLVideoElement;
 const remoteVideo = document.querySelector("#remoteVideo") as HTMLVideoElement;
 const startButton = document.getElementById("startButton") as HTMLButtonElement;
 const callButton = document.getElementById("callButton") as HTMLButtonElement;
-
+type Message =
+  | RTCSessionDescriptionInit
+  | RTCIceCandidateInit
+  | CandidateMessage
+  | "got user media"
+  | "bye";
+type CandidateMessage = {
+  type: "candidate";
+  label: number;
+  id: string;
+  candidate: string;
+};
 function createPeerConnection() {
   try {
     localPeerConnection = new RTCPeerConnection();
@@ -49,7 +60,55 @@ function createPeerConnection() {
     return;
   }
 }
+function maybeStart() {
+  console.log(">>>>>>> maybeStart() ", { isStarted }, { isChannelReady });
+  if (!isStarted && typeof localStream !== "undefined" && isChannelReady) {
+    console.log(">>>>>> creating peer connection");
+    createPeerConnection();
+    localStream.getTracks().forEach((track) => {
+      localPeerConnection.addTrack(track, localStream);
+    });
+    isStarted = true;
+    console.log("isInitiator", isInitiator);
+    if (isInitiator) {
+      doCall();
+    }
+  } else {
+    console.log(">>>>>>> not creating peer conenction");
+  }
+}
 
+function handleIceCandidate(event: RTCPeerConnectionIceEvent) {
+  console.log("icecandidate event: ", event);
+  if (event.candidate) {
+    sendMessage({
+      type: "candidate",
+      label: event.candidate.sdpMLineIndex!,
+      id: event.candidate.sdpMid!,
+      candidate: event.candidate.candidate,
+    });
+  } else {
+    console.log("End of candidates.");
+  }
+}
+
+async function doCall() {
+  console.log("Sending offer to peer");
+  const offer = await localPeerConnection.createOffer();
+  setLocalAndSendMessage(offer);
+}
+
+async function doAnswer() {
+  console.log("Sending answer to peer.");
+  const answer = await localPeerConnection.createAnswer();
+  setLocalAndSendMessage(answer);
+}
+
+function setLocalAndSendMessage(sessionDescription: any) {
+  localPeerConnection.setLocalDescription(sessionDescription);
+  console.log("setLocalAndSendMessage sending message", sessionDescription);
+  sendMessage(sessionDescription);
+}
 // @ts-ignore
 const socket = io.connect();
 socket.on("connect", () => {
@@ -133,8 +192,6 @@ socket.on("message", function (message: Message) {
   }
 });
 
-////////////////////////////////////////////////////
-
 function gotStream(stream: MediaStream) {
   console.log("Adding local stream.");
   localStream = stream;
@@ -142,86 +199,15 @@ function gotStream(stream: MediaStream) {
   sendMessage("got user media");
 }
 
-function maybeStart() {
-  console.log(">>>>>>> maybeStart() ", { isStarted }, { isChannelReady });
-  if (!isStarted && typeof localStream !== "undefined" && isChannelReady) {
-    console.log(">>>>>> creating peer connection");
-    createPeerConnection();
-    localStream.getTracks().forEach((track) => {
-      localPeerConnection.addTrack(track, localStream);
-    });
-    isStarted = true;
-    console.log("isInitiator", isInitiator);
-    if (isInitiator) {
-      doCall();
-    }
-  } else {
-    console.log(">>>>>>> not creating peer conenction");
-  }
-}
+////////////////////////////////////////////////
 
+function sendMessage(message: Message) {
+  console.log("Client sending message: ", message);
+  socket.emit("message", message);
+}
 window.onbeforeunload = function () {
   sendMessage("bye");
 };
-
-/////////////////////////////////////////////////////////
-
-type Message =
-  | RTCSessionDescriptionInit
-  | RTCIceCandidateInit
-  | CandidateMessage
-  | "got user media"
-  | "bye";
-type CandidateMessage = {
-  type: "candidate";
-  label: number;
-  id: string;
-  candidate: string;
-};
-
-function handleIceCandidate(event: RTCPeerConnectionIceEvent) {
-  console.log("icecandidate event: ", event);
-  if (event.candidate) {
-    sendMessage({
-      type: "candidate",
-      label: event.candidate.sdpMLineIndex!,
-      id: event.candidate.sdpMid!,
-      candidate: event.candidate.candidate,
-    });
-  } else {
-    console.log("End of candidates.");
-  }
-}
-
-function handleCreateOfferError(event: any) {
-  console.log("createOffer() error: ", event);
-}
-
-function doCall() {
-  console.log("Sending offer to peer");
-  localPeerConnection.createOffer(
-    setLocalAndSendMessage,
-    handleCreateOfferError
-  );
-}
-
-function doAnswer() {
-  console.log("Sending answer to peer.");
-  localPeerConnection
-    .createAnswer()
-    .then(setLocalAndSendMessage, onCreateSessionDescriptionError);
-}
-
-function setLocalAndSendMessage(sessionDescription: any) {
-  localPeerConnection.setLocalDescription(sessionDescription);
-  console.log("setLocalAndSendMessage sending message", sessionDescription);
-  sendMessage(sessionDescription);
-}
-
-function onCreateSessionDescriptionError(error: Error) {
-  console.error("Failed to create session description: " + error.toString());
-}
-
 function hangup() {
   console.log("Hanging up.");
   stopRTC();
@@ -237,10 +223,4 @@ function handleRemoteHangup() {
 function stopRTC() {
   isStarted = false;
   localPeerConnection.close();
-}
-////////////////////////////////////////////////
-
-function sendMessage(message: Message) {
-  console.log("Client sending message: ", message);
-  socket.emit("message", message);
 }
