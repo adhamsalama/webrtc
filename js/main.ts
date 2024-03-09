@@ -1,32 +1,55 @@
 "use strict";
 
+let localPeerConnection: RTCPeerConnection;
+let localStream: MediaStream;
+let remoteStream: MediaStream;
+
 let isChannelReady = false;
 let isInitiator = false;
 let isStarted = false;
-let localStream: MediaStream;
-let localPeerConnection: RTCPeerConnection;
-let remoteStream: MediaStream;
-let turnReady: boolean;
 
-let pcConfig = {
+let mySocketId: string | null;
+let room = "";
+
+const pcConfig = {
   iceServers: [
     {
       urls: "stun:stun.l.google.com:19302",
     },
   ],
 };
-
-// Set up audio and video regardless of what devices are present.
-let sdpConstraints = {
+const constraints = {
+  video: true,
+};
+const sdpConstraints = {
   offerToReceiveAudio: true,
   offerToReceiveVideo: true,
 };
-let mySocketId: string | null;
-/////////////////////////////////////////////
+const localVideo = document.querySelector("#localVideo") as HTMLVideoElement;
+const remoteVideo = document.querySelector("#remoteVideo") as HTMLVideoElement;
+const startButton = document.getElementById("startButton") as HTMLButtonElement;
+const callButton = document.getElementById("callButton") as HTMLButtonElement;
 
-let room = "";
+function createPeerConnection() {
+  try {
+    localPeerConnection = new RTCPeerConnection();
+    localPeerConnection.onicecandidate = handleIceCandidate;
+    localPeerConnection.ontrack = (event) => {
+      console.log("ontrack", event);
+      remoteVideo.srcObject = event.streams[0];
+    };
+    // @ts-expect-error
+    localPeerConnection.onremovestream = (event) => {
+      console.log("onremovestream", event);
+    };
+    console.log("Created RTCPeerConnnection");
+  } catch (e: any) {
+    console.log("Failed to create PeerConnection, exception: " + e.message);
+    alert("Cannot create RTCPeerConnection object.");
+    return;
+  }
+}
 
-// Could prompt for room name:
 // @ts-ignore
 const socket = io.connect();
 socket.on("connect", () => {
@@ -35,7 +58,6 @@ socket.on("connect", () => {
     .substring(7);
 });
 
-const startButton = document.getElementById("startButton") as HTMLButtonElement;
 startButton.onclick = async () => {
   room =
     prompt("Enter room name:", "") || Math.random().toString(36).substring(7);
@@ -45,10 +67,7 @@ startButton.onclick = async () => {
     video: true,
   });
   gotStream(localStream);
-  console.log("creatingRoom, calling maybeStart()");
-  // maybeStart();
 };
-const callButton = document.getElementById("callButton") as HTMLButtonElement;
 callButton.onclick = () => {
   room = prompt("Enter room name:") ?? "";
   socket.emit("joinRoom", room);
@@ -67,10 +86,6 @@ socket.on("created", function (room: string) {
   isInitiator = true;
 });
 
-socket.on("full", function (room: string) {
-  console.log("Room " + room + " is full");
-});
-
 socket.on("join", function (room: string) {
   console.log("Another peer made a request to join room " + room);
   console.log("This peer is the initiator of room " + room + "!");
@@ -81,17 +96,6 @@ socket.on("joined", function (room: string) {
   console.log("joined: " + room);
   isChannelReady = true;
 });
-
-socket.on("log", function (array: any) {
-  console.log.apply(console, array);
-});
-
-////////////////////////////////////////////////
-
-function sendMessage(message: Message) {
-  console.log("Client sending message: ", message);
-  socket.emit("message", message);
-}
 
 // This client receives a message
 socket.on("message", function (message: Message) {
@@ -131,29 +135,11 @@ socket.on("message", function (message: Message) {
 
 ////////////////////////////////////////////////////
 
-const localVideo = document.querySelector("#localVideo") as HTMLVideoElement;
-const remoteVideo = document.querySelector("#remoteVideo") as HTMLVideoElement;
-
 function gotStream(stream: MediaStream) {
   console.log("Adding local stream.");
   localStream = stream;
   localVideo.srcObject = stream;
   sendMessage("got user media");
-  /*if (isInitiator) {
-    maybeStart();
-  }*/
-}
-
-const constraints = {
-  video: true,
-};
-
-console.log("Getting user media with constraints", constraints);
-
-if (location.hostname !== "localhost") {
-  requestTurn(
-    "https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913"
-  );
 }
 
 function maybeStart() {
@@ -180,23 +166,6 @@ window.onbeforeunload = function () {
 
 /////////////////////////////////////////////////////////
 
-function createPeerConnection() {
-  try {
-    localPeerConnection = new RTCPeerConnection();
-    localPeerConnection.onicecandidate = handleIceCandidate;
-    localPeerConnection.ontrack = (event) => {
-      console.log("ontrack", event);
-      remoteVideo.srcObject = event.streams[0];
-    };
-    // @ts-expect-error
-    localPeerConnection.onremovestream = handleRemoteStreamRemoved;
-    console.log("Created RTCPeerConnnection");
-  } catch (e: any) {
-    console.log("Failed to create PeerConnection, exception: " + e.message);
-    alert("Cannot create RTCPeerConnection object.");
-    return;
-  }
-}
 type Message =
   | RTCSessionDescriptionInit
   | RTCIceCandidateInit
@@ -253,46 +222,6 @@ function onCreateSessionDescriptionError(error: Error) {
   console.error("Failed to create session description: " + error.toString());
 }
 
-function requestTurn(turnURL: string) {
-  let turnExists = false;
-  for (let i in pcConfig.iceServers) {
-    if (pcConfig.iceServers[i].urls.substr(0, 5) === "turn:") {
-      turnExists = true;
-      turnReady = true;
-      break;
-    }
-  }
-  if (!turnExists) {
-    console.log("Getting TURN server from ", turnURL);
-    // No TURN server. Get one from computeengineondemand.appspot.com:
-    let xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === 4 && xhr.status === 200) {
-        let turnServer = JSON.parse(xhr.responseText);
-        console.log("Got TURN server: ", turnServer);
-        pcConfig.iceServers.push({
-          urls: "turn:" + turnServer.username + "@" + turnServer.turn,
-          // @ts-expect-error
-          credential: turnServer.password,
-        });
-        turnReady = true;
-      }
-    };
-    xhr.open("GET", turnURL, true);
-    xhr.send();
-  }
-}
-
-function handleRemoteStreamAdded(event: any) {
-  console.log("Remote stream added.");
-  remoteStream = event.stream;
-  remoteVideo.srcObject = remoteStream;
-}
-
-function handleRemoteStreamRemoved(event: any) {
-  console.log("Remote stream removed. Event: ", event);
-}
-
 function hangup() {
   console.log("Hanging up.");
   stopRTC();
@@ -308,4 +237,10 @@ function handleRemoteHangup() {
 function stopRTC() {
   isStarted = false;
   localPeerConnection.close();
+}
+////////////////////////////////////////////////
+
+function sendMessage(message: Message) {
+  console.log("Client sending message: ", message);
+  socket.emit("message", message);
 }
