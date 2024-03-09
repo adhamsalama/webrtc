@@ -140,8 +140,9 @@ function maybeStart() {
   if (!isStarted && typeof localStream !== "undefined" && isChannelReady) {
     console.log(">>>>>> creating peer connection");
     createPeerConnection();
-    // @ts-expect-error
-    localPeerConnection.addStream(localStream);
+    localStream.getTracks().forEach((track) => {
+      localPeerConnection.addTrack(track, localStream);
+    });
     isStarted = true;
     console.log("isInitiator", isInitiator);
     if (isInitiator) {
