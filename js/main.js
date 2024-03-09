@@ -23,6 +23,7 @@ const pcConfig = {
 };
 const constraints = {
     video: true,
+    audio: true,
 };
 const sdpConstraints = {
     offerToReceiveAudio: true,
@@ -74,6 +75,7 @@ function setUpLocalPeer() {
         console.log(">>>>>> creating peer connection");
         createPeerConnection();
         localStream.getTracks().forEach((track) => {
+            console.log({ track });
             localPeerConnection.addTrack(track, localStream);
         });
         isStarted = true;
@@ -93,20 +95,14 @@ startButton.onclick = () => __awaiter(void 0, void 0, void 0, function* () {
     }
     room = promptedRoom;
     socket.emit("createRoom", room);
-    localStream = yield navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: true,
-    });
+    localStream = yield navigator.mediaDevices.getUserMedia(constraints);
     localVideo.srcObject = localStream;
 });
 callButton.onclick = () => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     room = (_a = prompt("Enter room name:")) !== null && _a !== void 0 ? _a : "";
     socket.emit("joinRoom", room);
-    localStream = yield navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: true,
-    });
+    localStream = yield navigator.mediaDevices.getUserMedia(constraints);
     localVideo.srcObject = localStream;
     sendMessage("peerIsReady");
 });
