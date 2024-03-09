@@ -21,20 +21,35 @@ let sdpConstraints = {
   offerToReceiveAudio: true,
   offerToReceiveVideo: true,
 };
-
+let mySocketId: string | null;
 /////////////////////////////////////////////
 
-let room = "foo";
+let room = "";
+
 // Could prompt for room name:
-// room = prompt('Enter room name:');
 // @ts-ignore
 const socket = io.connect();
+socket.on("connect", () => {
+  document.querySelector("#socketId")!.innerHTML = Math.random()
+    .toString(36)
+    .substring(7);
+});
 
-if (room !== "") {
+const startButton = document.getElementById("startButton") as HTMLButtonElement;
+startButton.onclick = () => {
+  room =
+    prompt("Enter room name:", "") || Math.random().toString(36).substring(7);
   socket.emit("create or join", room);
-  console.log("Attempted to create or  join room", room);
-}
-
+  navigator.mediaDevices
+    .getUserMedia({
+      audio: false,
+      video: true,
+    })
+    .then(gotStream)
+    .catch(function (e) {
+      alert("getUserMedia() error: " + e.name);
+    });
+};
 socket.on("created", function (room: string) {
   console.log("Created room " + room);
   isInitiator = true;
@@ -101,16 +116,6 @@ socket.on("message", function (message: Message) {
 
 const localVideo = document.querySelector("#localVideo") as HTMLVideoElement;
 const remoteVideo = document.querySelector("#remoteVideo") as HTMLVideoElement;
-
-navigator.mediaDevices
-  .getUserMedia({
-    audio: false,
-    video: true,
-  })
-  .then(gotStream)
-  .catch(function (e) {
-    alert("getUserMedia() error: " + e.name);
-  });
 
 function gotStream(stream: MediaStream) {
   console.log("Adding local stream.");
