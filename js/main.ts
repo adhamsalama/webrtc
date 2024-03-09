@@ -60,6 +60,19 @@ function createPeerConnection() {
     return;
   }
 }
+function handleIceCandidate(event: RTCPeerConnectionIceEvent) {
+  console.log("icecandidate event: ", event);
+  if (event.candidate) {
+    sendMessage({
+      type: "candidate",
+      label: event.candidate.sdpMLineIndex!,
+      id: event.candidate.sdpMid!,
+      candidate: event.candidate.candidate,
+    });
+  } else {
+    console.log("End of candidates.");
+  }
+}
 function maybeStart() {
   console.log(">>>>>>> maybeStart() ", { isStarted }, { isChannelReady });
   if (!isStarted && typeof localStream !== "undefined" && isChannelReady) {
@@ -75,20 +88,6 @@ function maybeStart() {
     }
   } else {
     console.log(">>>>>>> not creating peer conenction");
-  }
-}
-
-function handleIceCandidate(event: RTCPeerConnectionIceEvent) {
-  console.log("icecandidate event: ", event);
-  if (event.candidate) {
-    sendMessage({
-      type: "candidate",
-      label: event.candidate.sdpMLineIndex!,
-      id: event.candidate.sdpMid!,
-      candidate: event.candidate.candidate,
-    });
-  } else {
-    console.log("End of candidates.");
   }
 }
 
@@ -121,24 +120,21 @@ startButton.onclick = async () => {
   room =
     prompt("Enter room name:", "") || Math.random().toString(36).substring(7);
   socket.emit("createRoom", room);
-  const localStream = await navigator.mediaDevices.getUserMedia({
+  localStream = await navigator.mediaDevices.getUserMedia({
     audio: false,
     video: true,
   });
-  gotStream(localStream);
+  localVideo.srcObject = localStream;
 };
-callButton.onclick = () => {
+callButton.onclick = async () => {
   room = prompt("Enter room name:") ?? "";
   socket.emit("joinRoom", room);
-  navigator.mediaDevices
-    .getUserMedia({
-      audio: false,
-      video: true,
-    })
-    .then(gotStream)
-    .catch(function (e) {
-      alert("getUserMedia() error: " + e.name);
-    });
+  localStream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: true,
+  });
+  localVideo.srcObject = localStream;
+  sendMessage("got user media");
 };
 socket.on("created", function (room: string) {
   console.log("Created room " + room);
@@ -191,13 +187,6 @@ socket.on("message", function (message: Message) {
     handleRemoteHangup();
   }
 });
-
-function gotStream(stream: MediaStream) {
-  console.log("Adding local stream.");
-  localStream = stream;
-  localVideo.srcObject = stream;
-  sendMessage("got user media");
-}
 
 ////////////////////////////////////////////////
 
