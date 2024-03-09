@@ -67,39 +67,33 @@ function sendMessage(message: Message | any) {
 }
 
 // This client receives a message
-socket.on(
-  "message",
-  function (message: RTCSessionDescriptionInit | CandidateMessage | "bye") {
-    console.log("Client received message:", message);
-    if ((message as RTCSessionDescription).type === "offer") {
-      if (!isInitiator && !isStarted) {
-        maybeStart();
-      }
-      localPeerConnection.setRemoteDescription(
-        new RTCSessionDescription(message as RTCSessionDescriptionInit)
-      );
-      doAnswer();
-    } else if (
-      (message as RTCSessionDescription).type === "answer" &&
-      isStarted
-    ) {
-      localPeerConnection.setRemoteDescription(
-        new RTCSessionDescription(message as RTCSessionDescriptionInit)
-      );
-    } else if (
-      (message as CandidateMessage).type === "candidate" &&
-      isStarted
-    ) {
-      let candidate = new RTCIceCandidate({
-        sdpMLineIndex: (message as CandidateMessage).label,
-        candidate: (message as CandidateMessage).candidate,
-      });
-      localPeerConnection.addIceCandidate(candidate);
-    } else if (message === "bye" && isStarted) {
-      handleRemoteHangup();
+socket.on("message", function (message: Message) {
+  console.log("Client received message:", message);
+  if ((message as RTCSessionDescription).type === "offer") {
+    if (!isInitiator && !isStarted) {
+      maybeStart();
     }
+    localPeerConnection.setRemoteDescription(
+      new RTCSessionDescription(message as RTCSessionDescriptionInit)
+    );
+    doAnswer();
+  } else if (
+    (message as RTCSessionDescription).type === "answer" &&
+    isStarted
+  ) {
+    localPeerConnection.setRemoteDescription(
+      new RTCSessionDescription(message as RTCSessionDescriptionInit)
+    );
+  } else if ((message as CandidateMessage).type === "candidate" && isStarted) {
+    let candidate = new RTCIceCandidate({
+      sdpMLineIndex: (message as CandidateMessage).label,
+      candidate: (message as CandidateMessage).candidate,
+    });
+    localPeerConnection.addIceCandidate(candidate);
+  } else if (message === "bye" && isStarted) {
+    handleRemoteHangup();
   }
-);
+});
 
 ////////////////////////////////////////////////////
 
@@ -163,8 +157,10 @@ function createPeerConnection() {
   try {
     localPeerConnection = new RTCPeerConnection();
     localPeerConnection.onicecandidate = handleIceCandidate;
-    // @ts-expect-error
-    localPeerConnection.onaddstream = handleRemoteStreamAdded;
+    localPeerConnection.ontrack = (event) => {
+      console.log("ontrack", event);
+      remoteVideo.srcObject = event.streams[0];
+    };
     // @ts-expect-error
     localPeerConnection.onremovestream = handleRemoteStreamRemoved;
     console.log("Created RTCPeerConnnection");

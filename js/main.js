@@ -66,8 +66,7 @@ socket.on("message", function (message) {
         isStarted) {
         localPeerConnection.setRemoteDescription(new RTCSessionDescription(message));
     }
-    else if (message.type === "candidate" &&
-        isStarted) {
+    else if (message.type === "candidate" && isStarted) {
         var candidate = new RTCIceCandidate({
             sdpMLineIndex: message.label,
             candidate: message.candidate,
@@ -128,8 +127,11 @@ function createPeerConnection() {
     try {
         localPeerConnection = new RTCPeerConnection();
         localPeerConnection.onicecandidate = handleIceCandidate;
-        // @ts-expect-error
-        localPeerConnection.onaddstream = handleRemoteStreamAdded;
+        // localPeerConnection.onaddstream = handleRemoteStreamAdded;
+        localPeerConnection.ontrack = function (event) {
+            console.log("ontrack", event);
+            remoteVideo.srcObject = event.streams[0];
+        };
         // @ts-expect-error
         localPeerConnection.onremovestream = handleRemoteStreamRemoved;
         console.log("Created RTCPeerConnnection");
