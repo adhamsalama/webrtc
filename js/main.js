@@ -124,36 +124,36 @@ socket.on("joined", function (room) {
 socket.on("message", function (message) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("Client received message:", message);
-        // send by peer after clickign call and getting user media
+        // ? sent by peer after clickign call and getting user media
         if (message === "peerIsReady") {
             console.log("message=got user media, calling maybeStart()");
             setUpLocalPeer();
             if (isInitiator) {
+                const offerSessionDescription = yield localPeerConnection.createOffer();
+                localPeerConnection.setLocalDescription(offerSessionDescription);
                 console.log("Sending offer to peer");
-                const sessionDescription = yield localPeerConnection.createOffer();
-                localPeerConnection.setLocalDescription(sessionDescription);
-                sendMessage(sessionDescription);
+                sendMessage(offerSessionDescription);
             }
         }
         else if (message.type === "offer") {
             if (!isInitiator && !isStarted) {
-                console.log("message=offer, calling setUpLocalPeer()");
+                console.log("Got offer");
                 setUpLocalPeer();
             }
             localPeerConnection.setRemoteDescription(new RTCSessionDescription(message));
             console.log("Sending answer to peer.");
-            const sessionDescription = yield localPeerConnection.createAnswer();
-            localPeerConnection.setLocalDescription(sessionDescription);
-            sendMessage(sessionDescription);
+            const answerSessionDescription = yield localPeerConnection.createAnswer();
+            localPeerConnection.setLocalDescription(answerSessionDescription);
+            sendMessage(answerSessionDescription);
         }
         else if (message.type === "answer" &&
             isStarted) {
-            console.log("message=answer, calling setRemoteDescription");
+            console.log("Got answer from peer, setting it as remote description");
             localPeerConnection.setRemoteDescription(new RTCSessionDescription(message));
         }
         else if (message.type === "candidate" && isStarted) {
-            console.log("message=candidate, calling addIceCandidate");
-            let candidate = new RTCIceCandidate({
+            console.log("Got ICE candidate from peer, adding it to local peer");
+            const candidate = new RTCIceCandidate({
                 sdpMLineIndex: message.label,
                 candidate: message.candidate,
             });
