@@ -55,7 +55,6 @@ function sendMessage(message) {
 // This client receives a message
 socket.on("message", function (message) {
     console.log("Client received message:", message);
-    // @ts-expect-error
     if (message === "got user media") {
         maybeStart();
     }

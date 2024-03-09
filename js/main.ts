@@ -61,7 +61,7 @@ socket.on("log", function (array: any) {
 
 ////////////////////////////////////////////////
 
-function sendMessage(message: Message | any) {
+function sendMessage(message: Message) {
   console.log("Client sending message: ", message);
   socket.emit("message", message);
 }
@@ -69,7 +69,6 @@ function sendMessage(message: Message | any) {
 // This client receives a message
 socket.on("message", function (message: Message) {
   console.log("Client received message:", message);
-  // @ts-expect-error
   if (message === "got user media") {
     maybeStart();
   } else if ((message as RTCSessionDescription).type === "offer") {
@@ -178,6 +177,7 @@ type Message =
   | RTCSessionDescriptionInit
   | RTCIceCandidateInit
   | CandidateMessage
+  | "got user media"
   | "bye";
 type CandidateMessage = {
   type: "candidate";
@@ -191,8 +191,8 @@ function handleIceCandidate(event: RTCPeerConnectionIceEvent) {
   if (event.candidate) {
     sendMessage({
       type: "candidate",
-      label: event.candidate.sdpMLineIndex,
-      id: event.candidate.sdpMid,
+      label: event.candidate.sdpMLineIndex!,
+      id: event.candidate.sdpMid!,
       candidate: event.candidate.candidate,
     });
   } else {
