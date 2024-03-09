@@ -11,8 +11,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 let localPeerConnection;
 let localStream;
 let remoteStream;
-let isChannelReady = false;
-let isInitiator = false;
 let isStarted = false;
 let mySocketId;
 let room = "";
@@ -71,8 +69,8 @@ function createPeerConnection() {
     }
 }
 function setUpLocalPeer() {
-    console.log(">>>>>>> setting up local peer", { isStarted }, { isChannelReady });
-    if (!isStarted && typeof localStream !== "undefined" && isChannelReady) {
+    console.log(">>>>>>> setting up local peer", { isStarted });
+    if (!isStarted) {
         console.log(">>>>>> creating peer connection");
         createPeerConnection();
         localStream.getTracks().forEach((track) => {
@@ -117,16 +115,13 @@ hangupButton.onclick = () => {
 };
 socket.on("created", function (room) {
     console.log("Created room " + room);
-    isInitiator = true;
 });
 socket.on("join", function (room) {
     console.log("Another peer made a request to join room " + room);
     console.log("This peer is the initiator of room " + room + "!");
-    isChannelReady = true;
 });
 socket.on("joined", function (room) {
     console.log("joined: " + room);
-    isChannelReady = true;
 });
 // This client receives a message
 socket.on("message", function (message) {
@@ -136,15 +131,13 @@ socket.on("message", function (message) {
         if (message === "peerIsReady") {
             console.log("message=got user media, calling maybeStart()");
             setUpLocalPeer();
-            if (isInitiator) {
-                const offerSessionDescription = yield localPeerConnection.createOffer();
-                localPeerConnection.setLocalDescription(offerSessionDescription);
-                console.log("Sending offer to peer");
-                sendMessage(offerSessionDescription);
-            }
+            const offerSessionDescription = yield localPeerConnection.createOffer();
+            localPeerConnection.setLocalDescription(offerSessionDescription);
+            console.log("Sending offer to peer");
+            sendMessage(offerSessionDescription);
         }
         else if (message.type === "offer") {
-            if (!isInitiator && !isStarted) {
+            if (!isStarted) {
                 console.log("Got offer");
                 setUpLocalPeer();
             }
@@ -188,7 +181,6 @@ function hangup() {
 function handleRemoteHangup() {
     console.log("Session terminated.");
     stopRTC();
-    isInitiator = false;
 }
 function stopRTC() {
     isStarted = false;
