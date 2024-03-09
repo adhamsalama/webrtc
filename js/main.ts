@@ -33,7 +33,7 @@ type Message =
   | RTCSessionDescriptionInit
   | RTCIceCandidateInit
   | CandidateMessage
-  | "got user media"
+  | "peerIsReady"
   | "bye";
 type CandidateMessage = {
   type: "candidate";
@@ -73,7 +73,7 @@ function handleIceCandidate(event: RTCPeerConnectionIceEvent) {
     console.log("End of candidates.");
   }
 }
-function maybeStart() {
+function setUpLocalPeer() {
   console.log(">>>>>>> maybeStart() ", { isStarted }, { isChannelReady });
   if (!isStarted && typeof localStream !== "undefined" && isChannelReady) {
     console.log(">>>>>> creating peer connection");
@@ -82,12 +82,6 @@ function maybeStart() {
       localPeerConnection.addTrack(track, localStream);
     });
     isStarted = true;
-    console.log("isInitiator", isInitiator);
-    if (isInitiator) {
-      doCall();
-    }
-  } else {
-    console.log(">>>>>>> not creating peer conenction");
   }
 }
 
@@ -134,7 +128,7 @@ callButton.onclick = async () => {
     video: true,
   });
   localVideo.srcObject = localStream;
-  sendMessage("got user media");
+  sendMessage("peerIsReady");
 };
 socket.on("created", function (room: string) {
   console.log("Created room " + room);
@@ -155,13 +149,16 @@ socket.on("joined", function (room: string) {
 // This client receives a message
 socket.on("message", function (message: Message) {
   console.log("Client received message:", message);
-  if (message === "got user media") {
+  if (message === "peerIsReady") {
     console.log("message=got user media, calling maybeStart()");
-    maybeStart();
+    setUpLocalPeer();
+    if (isInitiator) {
+      doCall();
+    }
   } else if ((message as RTCSessionDescription).type === "offer") {
     if (!isInitiator && !isStarted) {
       console.log("message=offer, calling maybeStart()");
-      maybeStart();
+      setUpLocalPeer();
     }
     localPeerConnection.setRemoteDescription(
       new RTCSessionDescription(message as RTCSessionDescriptionInit)

@@ -68,7 +68,7 @@ function handleIceCandidate(event) {
         console.log("End of candidates.");
     }
 }
-function maybeStart() {
+function setUpLocalPeer() {
     console.log(">>>>>>> maybeStart() ", { isStarted }, { isChannelReady });
     if (!isStarted && typeof localStream !== "undefined" && isChannelReady) {
         console.log(">>>>>> creating peer connection");
@@ -77,13 +77,6 @@ function maybeStart() {
             localPeerConnection.addTrack(track, localStream);
         });
         isStarted = true;
-        console.log("isInitiator", isInitiator);
-        if (isInitiator) {
-            doCall();
-        }
-    }
-    else {
-        console.log(">>>>>>> not creating peer conenction");
     }
 }
 function doCall() {
@@ -131,7 +124,7 @@ callButton.onclick = () => __awaiter(void 0, void 0, void 0, function* () {
         video: true,
     });
     localVideo.srcObject = localStream;
-    sendMessage("got user media");
+    sendMessage("peerIsReady");
 });
 socket.on("created", function (room) {
     console.log("Created room " + room);
@@ -149,14 +142,18 @@ socket.on("joined", function (room) {
 // This client receives a message
 socket.on("message", function (message) {
     console.log("Client received message:", message);
-    if (message === "got user media") {
+    if (message === "peerIsReady") {
         console.log("message=got user media, calling maybeStart()");
-        maybeStart();
+        setUpLocalPeer();
+        if (isInitiator) {
+            console.log("line 156 calling doCall(");
+            doCall();
+        }
     }
     else if (message.type === "offer") {
         if (!isInitiator && !isStarted) {
             console.log("message=offer, calling maybeStart()");
-            maybeStart();
+            setUpLocalPeer();
         }
         localPeerConnection.setRemoteDescription(new RTCSessionDescription(message));
         console.log("calling doAnswer");
@@ -179,12 +176,6 @@ socket.on("message", function (message) {
         handleRemoteHangup();
     }
 });
-function addLocalStreamToLocalVideoAndSendGotUserMediaMessage(stream) {
-    console.log("Adding local stream.");
-    localStream = stream;
-    localVideo.srcObject = stream;
-    sendMessage("got user media");
-}
 ////////////////////////////////////////////////
 function sendMessage(message) {
     console.log("Client sending message: ", message);
