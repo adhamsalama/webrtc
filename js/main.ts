@@ -85,19 +85,7 @@ function setUpLocalPeer() {
   }
 }
 
-async function doCall() {
-  console.log("Sending offer to peer");
-  const offer = await localPeerConnection.createOffer();
-  setLocalAndSendMessage(offer);
-}
-
-async function doAnswer() {
-  console.log("Sending answer to peer.");
-  const answer = await localPeerConnection.createAnswer();
-  setLocalAndSendMessage(answer);
-}
-
-function setLocalAndSendMessage(sessionDescription: any) {
+function setLocalDescriptionAndSendMessage(sessionDescription: any) {
   localPeerConnection.setLocalDescription(sessionDescription);
   console.log("setLocalAndSendMessage sending message", sessionDescription);
   sendMessage(sessionDescription);
@@ -147,24 +135,27 @@ socket.on("joined", function (room: string) {
 });
 
 // This client receives a message
-socket.on("message", function (message: Message) {
+socket.on("message", async function (message: Message) {
   console.log("Client received message:", message);
   if (message === "peerIsReady") {
     console.log("message=got user media, calling maybeStart()");
     setUpLocalPeer();
     if (isInitiator) {
-      doCall();
+      console.log("Sending offer to peer");
+      const offer = await localPeerConnection.createOffer();
+      setLocalDescriptionAndSendMessage(offer);
     }
   } else if ((message as RTCSessionDescription).type === "offer") {
     if (!isInitiator && !isStarted) {
-      console.log("message=offer, calling maybeStart()");
+      console.log("message=offer, calling setUpLocalPeer()");
       setUpLocalPeer();
     }
     localPeerConnection.setRemoteDescription(
       new RTCSessionDescription(message as RTCSessionDescriptionInit)
     );
-    console.log("calling doAnswer");
-    doAnswer();
+    console.log("Sending answer to peer.");
+    const answer = await localPeerConnection.createAnswer();
+    setLocalDescriptionAndSendMessage(answer);
   } else if (
     (message as RTCSessionDescription).type === "answer" &&
     isStarted

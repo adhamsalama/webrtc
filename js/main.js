@@ -79,21 +79,7 @@ function setUpLocalPeer() {
         isStarted = true;
     }
 }
-function doCall() {
-    return __awaiter(this, void 0, void 0, function* () {
-        console.log("Sending offer to peer");
-        const offer = yield localPeerConnection.createOffer();
-        setLocalAndSendMessage(offer);
-    });
-}
-function doAnswer() {
-    return __awaiter(this, void 0, void 0, function* () {
-        console.log("Sending answer to peer.");
-        const answer = yield localPeerConnection.createAnswer();
-        setLocalAndSendMessage(answer);
-    });
-}
-function setLocalAndSendMessage(sessionDescription) {
+function setLocalDescriptionAndSendMessage(sessionDescription) {
     localPeerConnection.setLocalDescription(sessionDescription);
     console.log("setLocalAndSendMessage sending message", sessionDescription);
     sendMessage(sessionDescription);
@@ -141,40 +127,44 @@ socket.on("joined", function (room) {
 });
 // This client receives a message
 socket.on("message", function (message) {
-    console.log("Client received message:", message);
-    if (message === "peerIsReady") {
-        console.log("message=got user media, calling maybeStart()");
-        setUpLocalPeer();
-        if (isInitiator) {
-            console.log("line 156 calling doCall(");
-            doCall();
-        }
-    }
-    else if (message.type === "offer") {
-        if (!isInitiator && !isStarted) {
-            console.log("message=offer, calling maybeStart()");
+    return __awaiter(this, void 0, void 0, function* () {
+        console.log("Client received message:", message);
+        if (message === "peerIsReady") {
+            console.log("message=got user media, calling maybeStart()");
             setUpLocalPeer();
+            if (isInitiator) {
+                console.log("Sending offer to peer");
+                const offer = yield localPeerConnection.createOffer();
+                setLocalDescriptionAndSendMessage(offer);
+            }
         }
-        localPeerConnection.setRemoteDescription(new RTCSessionDescription(message));
-        console.log("calling doAnswer");
-        doAnswer();
-    }
-    else if (message.type === "answer" &&
-        isStarted) {
-        console.log("message=answer, calling setRemoteDescription");
-        localPeerConnection.setRemoteDescription(new RTCSessionDescription(message));
-    }
-    else if (message.type === "candidate" && isStarted) {
-        console.log("message=candidate, calling addIceCandidate");
-        let candidate = new RTCIceCandidate({
-            sdpMLineIndex: message.label,
-            candidate: message.candidate,
-        });
-        localPeerConnection.addIceCandidate(candidate);
-    }
-    else if (message === "bye" && isStarted) {
-        handleRemoteHangup();
-    }
+        else if (message.type === "offer") {
+            if (!isInitiator && !isStarted) {
+                console.log("message=offer, calling setUpLocalPeer()");
+                setUpLocalPeer();
+            }
+            localPeerConnection.setRemoteDescription(new RTCSessionDescription(message));
+            console.log("Sending answer to peer.");
+            const answer = yield localPeerConnection.createAnswer();
+            setLocalDescriptionAndSendMessage(answer);
+        }
+        else if (message.type === "answer" &&
+            isStarted) {
+            console.log("message=answer, calling setRemoteDescription");
+            localPeerConnection.setRemoteDescription(new RTCSessionDescription(message));
+        }
+        else if (message.type === "candidate" && isStarted) {
+            console.log("message=candidate, calling addIceCandidate");
+            let candidate = new RTCIceCandidate({
+                sdpMLineIndex: message.label,
+                candidate: message.candidate,
+            });
+            localPeerConnection.addIceCandidate(candidate);
+        }
+        else if (message === "bye" && isStarted) {
+            handleRemoteHangup();
+        }
+    });
 });
 ////////////////////////////////////////////////
 function sendMessage(message) {
