@@ -6,7 +6,6 @@ let remoteStream: MediaStream;
 
 let isStarted = false;
 
-let mySocketId: string | null;
 let room = "";
 
 const pcConfig = {
@@ -94,7 +93,7 @@ function setUpLocalPeer() {
 // @ts-ignore
 const socket = io.connect();
 socket.on("connect", () => {
-  document.querySelector("#socketId")!.innerHTML = Math.random()
+  document.querySelector("#myId")!.innerHTML = Math.random()
     .toString(36)
     .substring(7);
 });

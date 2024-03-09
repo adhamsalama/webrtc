@@ -12,7 +12,6 @@ let localPeerConnection;
 let localStream;
 let remoteStream;
 let isStarted = false;
-let mySocketId;
 let room = "";
 const pcConfig = {
     iceServers: [
@@ -84,7 +83,7 @@ function setUpLocalPeer() {
 // @ts-ignore
 const socket = io.connect();
 socket.on("connect", () => {
-    document.querySelector("#socketId").innerHTML = Math.random()
+    document.querySelector("#myId").innerHTML = Math.random()
         .toString(36)
         .substring(7);
 });
