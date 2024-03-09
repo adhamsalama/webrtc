@@ -29,6 +29,10 @@ const localVideo = document.querySelector("#localVideo") as HTMLVideoElement;
 const remoteVideo = document.querySelector("#remoteVideo") as HTMLVideoElement;
 const startButton = document.getElementById("startButton") as HTMLButtonElement;
 const callButton = document.getElementById("callButton") as HTMLButtonElement;
+const hangupButton = document.getElementById(
+  "hangupButton"
+) as HTMLButtonElement;
+
 type Message =
   | RTCSessionDescriptionInit
   | RTCIceCandidateInit
@@ -60,10 +64,12 @@ function createPeerConnection() {
     localPeerConnection.ontrack = (event) => {
       console.log("ontrack", event);
       remoteVideo.srcObject = event.streams[0];
-    };
-    // @ts-expect-error
-    localPeerConnection.onremovestream = (event) => {
-      console.log("onremovestream", event);
+      event.streams.forEach((stream) => {
+        stream.onremovetrack = () => {
+          alert("onremovetrack");
+          console.log("onremovetrack", event);
+        };
+      });
     };
     console.log("Created RTCPeerConnnection");
   } catch (e: any) {
@@ -114,6 +120,10 @@ callButton.onclick = async () => {
   });
   localVideo.srcObject = localStream;
   sendMessage("peerIsReady");
+};
+
+hangupButton.onclick = () => {
+  hangup();
 };
 socket.on("created", function (room: string) {
   console.log("Created room " + room);

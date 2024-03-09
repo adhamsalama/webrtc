@@ -34,6 +34,7 @@ const localVideo = document.querySelector("#localVideo");
 const remoteVideo = document.querySelector("#remoteVideo");
 const startButton = document.getElementById("startButton");
 const callButton = document.getElementById("callButton");
+const hangupButton = document.getElementById("hangupButton");
 function createPeerConnection() {
     try {
         localPeerConnection = new RTCPeerConnection();
@@ -54,10 +55,12 @@ function createPeerConnection() {
         localPeerConnection.ontrack = (event) => {
             console.log("ontrack", event);
             remoteVideo.srcObject = event.streams[0];
-        };
-        // @ts-expect-error
-        localPeerConnection.onremovestream = (event) => {
-            console.log("onremovestream", event);
+            event.streams.forEach((stream) => {
+                stream.onremovetrack = () => {
+                    alert("onremovetrack");
+                    console.log("onremovetrack", event);
+                };
+            });
         };
         console.log("Created RTCPeerConnnection");
     }
@@ -107,6 +110,9 @@ callButton.onclick = () => __awaiter(void 0, void 0, void 0, function* () {
     localVideo.srcObject = localStream;
     sendMessage("peerIsReady");
 });
+hangupButton.onclick = () => {
+    hangup();
+};
 socket.on("created", function (room) {
     console.log("Created room " + room);
     isInitiator = true;
@@ -175,6 +181,7 @@ window.onbeforeunload = function () {
 function hangup() {
     console.log("Hanging up.");
     stopRTC();
+    localStream.removeTrack(localStream.getTracks()[0]);
     sendMessage("bye");
 }
 function handleRemoteHangup() {
