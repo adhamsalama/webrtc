@@ -12,6 +12,7 @@
     "dev": "npm run build && npm run start"
   },
   "devDependencies": {
-    "@types/node": "^20.11.25"
+    "@types/node": "^20.11.25",
+    "ts-node": "^10.9.2"
   }
 }
