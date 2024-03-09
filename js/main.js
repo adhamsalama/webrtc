@@ -1,4 +1,13 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 let isChannelReady = false;
 let isInitiator = false;
 let isStarted = false;
@@ -30,20 +39,18 @@ socket.on("connect", () => {
         .substring(7);
 });
 const startButton = document.getElementById("startButton");
-startButton.onclick = () => {
+startButton.onclick = () => __awaiter(void 0, void 0, void 0, function* () {
     room =
         prompt("Enter room name:", "") || Math.random().toString(36).substring(7);
     socket.emit("createRoom", room);
-    navigator.mediaDevices
-        .getUserMedia({
+    const localStream = yield navigator.mediaDevices.getUserMedia({
         audio: false,
         video: true,
-    })
-        .then(gotStream)
-        .catch(function (e) {
-        alert("getUserMedia() error: " + e.name);
     });
-};
+    gotStream(localStream);
+    console.log("creatingRoom, calling maybeStart()");
+    // maybeStart();
+});
 const callButton = document.getElementById("callButton");
 callButton.onclick = () => {
     var _a;
@@ -87,20 +94,25 @@ function sendMessage(message) {
 socket.on("message", function (message) {
     console.log("Client received message:", message);
     if (message === "got user media") {
+        console.log("message=got user media, calling maybeStart()");
         maybeStart();
     }
     else if (message.type === "offer") {
         if (!isInitiator && !isStarted) {
+            console.log("message=offer, calling maybeStart()");
             maybeStart();
         }
         localPeerConnection.setRemoteDescription(new RTCSessionDescription(message));
+        console.log("calling doAnswer");
         doAnswer();
     }
     else if (message.type === "answer" &&
         isStarted) {
+        console.log("message=answer, calling setRemoteDescription");
         localPeerConnection.setRemoteDescription(new RTCSessionDescription(message));
     }
     else if (message.type === "candidate" && isStarted) {
+        console.log("message=candidate, calling addIceCandidate");
         let candidate = new RTCIceCandidate({
             sdpMLineIndex: message.label,
             candidate: message.candidate,
@@ -119,9 +131,9 @@ function gotStream(stream) {
     localStream = stream;
     localVideo.srcObject = stream;
     sendMessage("got user media");
-    if (isInitiator) {
-        maybeStart();
-    }
+    /*if (isInitiator) {
+      maybeStart();
+    }*/
 }
 const constraints = {
     video: true,
@@ -131,7 +143,7 @@ if (location.hostname !== "localhost") {
     requestTurn("https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913");
 }
 function maybeStart() {
-    console.log(">>>>>>> maybeStart() ", isStarted, localStream, isChannelReady);
+    console.log(">>>>>>> maybeStart() ", { isStarted }, { isChannelReady });
     if (!isStarted && typeof localStream !== "undefined" && isChannelReady) {
         console.log(">>>>>> creating peer connection");
         createPeerConnection();
@@ -143,6 +155,9 @@ function maybeStart() {
         if (isInitiator) {
             doCall();
         }
+    }
+    else {
+        console.log(">>>>>>> not creating peer conenction");
     }
 }
 window.onbeforeunload = function () {

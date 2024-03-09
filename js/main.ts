@@ -36,19 +36,17 @@ socket.on("connect", () => {
 });
 
 const startButton = document.getElementById("startButton") as HTMLButtonElement;
-startButton.onclick = () => {
+startButton.onclick = async () => {
   room =
     prompt("Enter room name:", "") || Math.random().toString(36).substring(7);
   socket.emit("createRoom", room);
-  navigator.mediaDevices
-    .getUserMedia({
-      audio: false,
-      video: true,
-    })
-    .then(gotStream)
-    .catch(function (e) {
-      alert("getUserMedia() error: " + e.name);
-    });
+  const localStream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: true,
+  });
+  gotStream(localStream);
+  console.log("creatingRoom, calling maybeStart()");
+  // maybeStart();
 };
 const callButton = document.getElementById("callButton") as HTMLButtonElement;
 callButton.onclick = () => {
@@ -99,23 +97,28 @@ function sendMessage(message: Message) {
 socket.on("message", function (message: Message) {
   console.log("Client received message:", message);
   if (message === "got user media") {
+    console.log("message=got user media, calling maybeStart()");
     maybeStart();
   } else if ((message as RTCSessionDescription).type === "offer") {
     if (!isInitiator && !isStarted) {
+      console.log("message=offer, calling maybeStart()");
       maybeStart();
     }
     localPeerConnection.setRemoteDescription(
       new RTCSessionDescription(message as RTCSessionDescriptionInit)
     );
+    console.log("calling doAnswer");
     doAnswer();
   } else if (
     (message as RTCSessionDescription).type === "answer" &&
     isStarted
   ) {
+    console.log("message=answer, calling setRemoteDescription");
     localPeerConnection.setRemoteDescription(
       new RTCSessionDescription(message as RTCSessionDescriptionInit)
     );
   } else if ((message as CandidateMessage).type === "candidate" && isStarted) {
+    console.log("message=candidate, calling addIceCandidate");
     let candidate = new RTCIceCandidate({
       sdpMLineIndex: (message as CandidateMessage).label,
       candidate: (message as CandidateMessage).candidate,
@@ -136,9 +139,9 @@ function gotStream(stream: MediaStream) {
   localStream = stream;
   localVideo.srcObject = stream;
   sendMessage("got user media");
-  if (isInitiator) {
+  /*if (isInitiator) {
     maybeStart();
-  }
+  }*/
 }
 
 const constraints = {
@@ -154,7 +157,7 @@ if (location.hostname !== "localhost") {
 }
 
 function maybeStart() {
-  console.log(">>>>>>> maybeStart() ", isStarted, localStream, isChannelReady);
+  console.log(">>>>>>> maybeStart() ", { isStarted }, { isChannelReady });
   if (!isStarted && typeof localStream !== "undefined" && isChannelReady) {
     console.log(">>>>>> creating peer connection");
     createPeerConnection();
@@ -166,6 +169,8 @@ function maybeStart() {
     if (isInitiator) {
       doCall();
     }
+  } else {
+    console.log(">>>>>>> not creating peer conenction");
   }
 }
 
