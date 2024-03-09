@@ -79,7 +79,11 @@ function createPeerConnection() {
   }
 }
 function setUpLocalPeer() {
-  console.log(">>>>>>> maybeStart() ", { isStarted }, { isChannelReady });
+  console.log(
+    ">>>>>>> setting up local peer",
+    { isStarted },
+    { isChannelReady }
+  );
   if (!isStarted && typeof localStream !== "undefined" && isChannelReady) {
     console.log(">>>>>> creating peer connection");
     createPeerConnection();
@@ -90,9 +94,6 @@ function setUpLocalPeer() {
   }
 }
 
-function setLocalDescriptionAndSendItToPeer(
-  sessionDescription: RTCSessionDescriptionInit
-) {}
 // @ts-ignore
 const socket = io.connect();
 socket.on("connect", () => {
@@ -102,8 +103,11 @@ socket.on("connect", () => {
 });
 
 startButton.onclick = async () => {
-  room =
-    prompt("Enter room name:", "") || Math.random().toString(36).substring(7);
+  const promptedRoom = prompt("Enter room name:");
+  if (!promptedRoom) {
+    return;
+  }
+  room = promptedRoom;
   socket.emit("createRoom", room);
   localStream = await navigator.mediaDevices.getUserMedia({
     audio: false,

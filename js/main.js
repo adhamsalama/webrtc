@@ -71,7 +71,7 @@ function createPeerConnection() {
     }
 }
 function setUpLocalPeer() {
-    console.log(">>>>>>> maybeStart() ", { isStarted }, { isChannelReady });
+    console.log(">>>>>>> setting up local peer", { isStarted }, { isChannelReady });
     if (!isStarted && typeof localStream !== "undefined" && isChannelReady) {
         console.log(">>>>>> creating peer connection");
         createPeerConnection();
@@ -81,7 +81,6 @@ function setUpLocalPeer() {
         isStarted = true;
     }
 }
-function setLocalDescriptionAndSendItToPeer(sessionDescription) { }
 // @ts-ignore
 const socket = io.connect();
 socket.on("connect", () => {
@@ -90,8 +89,11 @@ socket.on("connect", () => {
         .substring(7);
 });
 startButton.onclick = () => __awaiter(void 0, void 0, void 0, function* () {
-    room =
-        prompt("Enter room name:", "") || Math.random().toString(36).substring(7);
+    const promptedRoom = prompt("Enter room name:");
+    if (!promptedRoom) {
+        return;
+    }
+    room = promptedRoom;
     socket.emit("createRoom", room);
     localStream = yield navigator.mediaDevices.getUserMedia({
         audio: false,
@@ -181,7 +183,6 @@ window.onbeforeunload = function () {
 function hangup() {
     console.log("Hanging up.");
     stopRTC();
-    localStream.removeTrack(localStream.getTracks()[0]);
     sendMessage("bye");
 }
 function handleRemoteHangup() {
