@@ -30,28 +30,18 @@ io.sockets.on("connection", function (socket) {
     socket.broadcast.emit("message", message);
   });
 
-  socket.on("create or join", function (room) {
-    console.log("Received request to create or join room " + room);
-    const clientsInRoom = io.sockets.adapter.rooms[room];
-    const numClients = clientsInRoom
-      ? Object.keys(clientsInRoom.sockets).length
-      : 0;
-    console.log("Room " + room + " now has " + numClients + " client(s)");
+  socket.on("createRoom", (room) => {
+    socket.join(room);
+    console.log("Client ID " + socket.id + " created room " + room);
+    socket.emit("created", room, socket.id);
+  });
 
-    if (numClients === 0) {
-      socket.join(room);
-      console.log("Client ID " + socket.id + " created room " + room);
-      socket.emit("created", room, socket.id);
-    } else if (numClients === 1) {
-      console.log("Client ID " + socket.id + " joined room " + room);
-      io.sockets.in(room).emit("join", room);
-      socket.join(room);
-      socket.emit("joined", room, socket.id);
-      io.sockets.in(room).emit("ready");
-    } else {
-      // max two clients
-      socket.emit("full", room);
-    }
+  socket.on("joinRoom", (room) => {
+    console.log("Client ID " + socket.id + " joined room " + room);
+    io.sockets.in(room).emit("join", room);
+    socket.join(room);
+    socket.emit("joined", room, socket.id);
+    io.sockets.in(room).emit("ready");
   });
 
   socket.on("ipaddr", function () {

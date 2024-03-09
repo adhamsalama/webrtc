@@ -39,7 +39,21 @@ const startButton = document.getElementById("startButton") as HTMLButtonElement;
 startButton.onclick = () => {
   room =
     prompt("Enter room name:", "") || Math.random().toString(36).substring(7);
-  socket.emit("create or join", room);
+  socket.emit("createRoom", room);
+  navigator.mediaDevices
+    .getUserMedia({
+      audio: false,
+      video: true,
+    })
+    .then(gotStream)
+    .catch(function (e) {
+      alert("getUserMedia() error: " + e.name);
+    });
+};
+const callButton = document.getElementById("callButton") as HTMLButtonElement;
+callButton.onclick = () => {
+  room = prompt("Enter room name:") ?? "";
+  socket.emit("joinRoom", room);
   navigator.mediaDevices
     .getUserMedia({
       audio: false,

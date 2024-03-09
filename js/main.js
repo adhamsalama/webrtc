@@ -18,16 +18,47 @@ let sdpConstraints = {
     offerToReceiveAudio: true,
     offerToReceiveVideo: true,
 };
+let mySocketId;
 /////////////////////////////////////////////
-let room = "foo";
+let room = "";
 // Could prompt for room name:
-// room = prompt('Enter room name:');
 // @ts-ignore
 const socket = io.connect();
-if (room !== "") {
-    socket.emit("create or join", room);
-    console.log("Attempted to create or  join room", room);
-}
+socket.on("connect", () => {
+    document.querySelector("#socketId").innerHTML = Math.random()
+        .toString(36)
+        .substring(7);
+});
+const startButton = document.getElementById("startButton");
+startButton.onclick = () => {
+    room =
+        prompt("Enter room name:", "") || Math.random().toString(36).substring(7);
+    socket.emit("createRoom", room);
+    navigator.mediaDevices
+        .getUserMedia({
+        audio: false,
+        video: true,
+    })
+        .then(gotStream)
+        .catch(function (e) {
+        alert("getUserMedia() error: " + e.name);
+    });
+};
+const callButton = document.getElementById("callButton");
+callButton.onclick = () => {
+    var _a;
+    room = (_a = prompt("Enter room name:")) !== null && _a !== void 0 ? _a : "";
+    socket.emit("joinRoom", room);
+    navigator.mediaDevices
+        .getUserMedia({
+        audio: false,
+        video: true,
+    })
+        .then(gotStream)
+        .catch(function (e) {
+        alert("getUserMedia() error: " + e.name);
+    });
+};
 socket.on("created", function (room) {
     console.log("Created room " + room);
     isInitiator = true;
@@ -83,15 +114,6 @@ socket.on("message", function (message) {
 ////////////////////////////////////////////////////
 const localVideo = document.querySelector("#localVideo");
 const remoteVideo = document.querySelector("#remoteVideo");
-navigator.mediaDevices
-    .getUserMedia({
-    audio: false,
-    video: true,
-})
-    .then(gotStream)
-    .catch(function (e) {
-    alert("getUserMedia() error: " + e.name);
-});
 function gotStream(stream) {
     console.log("Adding local stream.");
     localStream = stream;
