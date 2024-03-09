@@ -44,7 +44,19 @@ type CandidateMessage = {
 function createPeerConnection() {
   try {
     localPeerConnection = new RTCPeerConnection();
-    localPeerConnection.onicecandidate = handleIceCandidate;
+    localPeerConnection.onicecandidate = (event) => {
+      console.log("icecandidate event: ", event);
+      if (event.candidate) {
+        sendMessage({
+          type: "candidate",
+          label: event.candidate.sdpMLineIndex!,
+          id: event.candidate.sdpMid!,
+          candidate: event.candidate.candidate,
+        });
+      } else {
+        console.log("End of candidates.");
+      }
+    };
     localPeerConnection.ontrack = (event) => {
       console.log("ontrack", event);
       remoteVideo.srcObject = event.streams[0];
@@ -58,19 +70,6 @@ function createPeerConnection() {
     console.log("Failed to create PeerConnection, exception: " + e.message);
     alert("Cannot create RTCPeerConnection object.");
     return;
-  }
-}
-function handleIceCandidate(event: RTCPeerConnectionIceEvent) {
-  console.log("icecandidate event: ", event);
-  if (event.candidate) {
-    sendMessage({
-      type: "candidate",
-      label: event.candidate.sdpMLineIndex!,
-      id: event.candidate.sdpMid!,
-      candidate: event.candidate.candidate,
-    });
-  } else {
-    console.log("End of candidates.");
   }
 }
 function setUpLocalPeer() {
@@ -135,6 +134,7 @@ socket.on("joined", function (room: string) {
 // This client receives a message
 socket.on("message", async function (message: Message) {
   console.log("Client received message:", message);
+  // send by peer after clickign call and getting user media
   if (message === "peerIsReady") {
     console.log("message=got user media, calling maybeStart()");
     setUpLocalPeer();
