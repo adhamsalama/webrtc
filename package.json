@@ -3,12 +3,15 @@
   "version": "0.0.1",
   "description": "WebRTC codelab",
   "dependencies": {
-    "socket.io": "^2.0.4",
+    "socket.io": "^4.7.4",
     "typescript": "^5.4.2"
   },
   "scripts": {
     "build": "./node_modules/typescript/bin/tsc",
-    "start": "node index.js",
+    "start": "ts-node index.ts",
     "dev": "npm run build && npm run start"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.25"
   }
 }
