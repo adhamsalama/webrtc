@@ -7,6 +7,8 @@
     "typescript": "^5.4.2"
   },
   "scripts": {
-    "build": "./node_modules/typescript/bin/tsc ./js/main.ts"
+    "build": "./node_modules/typescript/bin/tsc",
+    "start": "node index.js",
+    "dev": "npm run build && npm run start"
   }
 }

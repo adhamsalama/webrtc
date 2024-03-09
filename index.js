@@ -19,7 +19,7 @@ const app = http
     return res.end();
   })
   .listen(8080);
-
+console.log("Listening on http://localhost:8080");
 const io = socketIO.listen(app);
 
 io.sockets.on("connection", function (socket) {
