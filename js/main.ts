@@ -69,7 +69,10 @@ function sendMessage(message: Message | any) {
 // This client receives a message
 socket.on("message", function (message: Message) {
   console.log("Client received message:", message);
-  if ((message as RTCSessionDescription).type === "offer") {
+  // @ts-expect-error
+  if (message === "got user media") {
+    maybeStart();
+  } else if ((message as RTCSessionDescription).type === "offer") {
     if (!isInitiator && !isStarted) {
       maybeStart();
     }

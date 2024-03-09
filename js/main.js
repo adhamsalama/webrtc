@@ -1,12 +1,12 @@
 "use strict";
-var isChannelReady = false;
-var isInitiator = false;
-var isStarted = false;
-var localStream;
-var localPeerConnection;
-var remoteStream;
-var turnReady;
-var pcConfig = {
+let isChannelReady = false;
+let isInitiator = false;
+let isStarted = false;
+let localStream;
+let localPeerConnection;
+let remoteStream;
+let turnReady;
+let pcConfig = {
     iceServers: [
         {
             urls: "stun:stun.l.google.com:19302",
@@ -14,16 +14,16 @@ var pcConfig = {
     ],
 };
 // Set up audio and video regardless of what devices are present.
-var sdpConstraints = {
+let sdpConstraints = {
     offerToReceiveAudio: true,
     offerToReceiveVideo: true,
 };
 /////////////////////////////////////////////
-var room = "foo";
+let room = "foo";
 // Could prompt for room name:
 // room = prompt('Enter room name:');
 // @ts-ignore
-var socket = io.connect();
+const socket = io.connect();
 if (room !== "") {
     socket.emit("create or join", room);
     console.log("Attempted to create or  join room", room);
@@ -55,7 +55,11 @@ function sendMessage(message) {
 // This client receives a message
 socket.on("message", function (message) {
     console.log("Client received message:", message);
-    if (message.type === "offer") {
+    // @ts-expect-error
+    if (message === "got user media") {
+        maybeStart();
+    }
+    else if (message.type === "offer") {
         if (!isInitiator && !isStarted) {
             maybeStart();
         }
@@ -67,7 +71,7 @@ socket.on("message", function (message) {
         localPeerConnection.setRemoteDescription(new RTCSessionDescription(message));
     }
     else if (message.type === "candidate" && isStarted) {
-        var candidate = new RTCIceCandidate({
+        let candidate = new RTCIceCandidate({
             sdpMLineIndex: message.label,
             candidate: message.candidate,
         });
@@ -78,8 +82,8 @@ socket.on("message", function (message) {
     }
 });
 ////////////////////////////////////////////////////
-var localVideo = document.querySelector("#localVideo");
-var remoteVideo = document.querySelector("#remoteVideo");
+const localVideo = document.querySelector("#localVideo");
+const remoteVideo = document.querySelector("#remoteVideo");
 navigator.mediaDevices
     .getUserMedia({
     audio: false,
@@ -98,7 +102,7 @@ function gotStream(stream) {
         maybeStart();
     }
 }
-var constraints = {
+const constraints = {
     video: true,
 };
 console.log("Getting user media with constraints", constraints);
@@ -127,8 +131,7 @@ function createPeerConnection() {
     try {
         localPeerConnection = new RTCPeerConnection();
         localPeerConnection.onicecandidate = handleIceCandidate;
-        // localPeerConnection.onaddstream = handleRemoteStreamAdded;
-        localPeerConnection.ontrack = function (event) {
+        localPeerConnection.ontrack = (event) => {
             console.log("ontrack", event);
             remoteVideo.srcObject = event.streams[0];
         };
@@ -178,8 +181,8 @@ function onCreateSessionDescriptionError(error) {
     console.error("Failed to create session description: " + error.toString());
 }
 function requestTurn(turnURL) {
-    var turnExists = false;
-    for (var i in pcConfig.iceServers) {
+    let turnExists = false;
+    for (let i in pcConfig.iceServers) {
         if (pcConfig.iceServers[i].urls.substr(0, 5) === "turn:") {
             turnExists = true;
             turnReady = true;
@@ -189,10 +192,10 @@ function requestTurn(turnURL) {
     if (!turnExists) {
         console.log("Getting TURN server from ", turnURL);
         // No TURN server. Get one from computeengineondemand.appspot.com:
-        var xhr_1 = new XMLHttpRequest();
-        xhr_1.onreadystatechange = function () {
-            if (xhr_1.readyState === 4 && xhr_1.status === 200) {
-                var turnServer = JSON.parse(xhr_1.responseText);
+        let xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                let turnServer = JSON.parse(xhr.responseText);
                 console.log("Got TURN server: ", turnServer);
                 pcConfig.iceServers.push({
                     urls: "turn:" + turnServer.username + "@" + turnServer.turn,
@@ -202,8 +205,8 @@ function requestTurn(turnURL) {
                 turnReady = true;
             }
         };
-        xhr_1.open("GET", turnURL, true);
-        xhr_1.send();
+        xhr.open("GET", turnURL, true);
+        xhr.send();
     }
 }
 function handleRemoteStreamAdded(event) {
