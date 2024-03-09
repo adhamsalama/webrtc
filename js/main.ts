@@ -85,11 +85,9 @@ function setUpLocalPeer() {
   }
 }
 
-function setLocalDescriptionAndSendMessage(sessionDescription: any) {
-  localPeerConnection.setLocalDescription(sessionDescription);
-  console.log("setLocalAndSendMessage sending message", sessionDescription);
-  sendMessage(sessionDescription);
-}
+function setLocalDescriptionAndSendItToPeer(
+  sessionDescription: RTCSessionDescriptionInit
+) {}
 // @ts-ignore
 const socket = io.connect();
 socket.on("connect", () => {
@@ -142,8 +140,9 @@ socket.on("message", async function (message: Message) {
     setUpLocalPeer();
     if (isInitiator) {
       console.log("Sending offer to peer");
-      const offer = await localPeerConnection.createOffer();
-      setLocalDescriptionAndSendMessage(offer);
+      const sessionDescription = await localPeerConnection.createOffer();
+      localPeerConnection.setLocalDescription(sessionDescription);
+      sendMessage(sessionDescription);
     }
   } else if ((message as RTCSessionDescription).type === "offer") {
     if (!isInitiator && !isStarted) {
@@ -154,8 +153,9 @@ socket.on("message", async function (message: Message) {
       new RTCSessionDescription(message as RTCSessionDescriptionInit)
     );
     console.log("Sending answer to peer.");
-    const answer = await localPeerConnection.createAnswer();
-    setLocalDescriptionAndSendMessage(answer);
+    const sessionDescription = await localPeerConnection.createAnswer();
+    localPeerConnection.setLocalDescription(sessionDescription);
+    sendMessage(sessionDescription);
   } else if (
     (message as RTCSessionDescription).type === "answer" &&
     isStarted
