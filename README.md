@@ -19,3 +19,8 @@ npm run dev
 - Click "Join Room" and paste the ID of the first user.
 
 You should see the local video and remote video playing and showing real time video and audio.
+
+## Resources
+
+- [https://codelabs.developers.google.com/codelabs/webrtc-web/](https://codelabs.developers.google.com/codelabs/webrtc-web/)
+- [https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API)
