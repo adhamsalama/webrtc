@@ -13,7 +13,6 @@ npm run dev
 ```
 
 - Open a browser browser instance at [http://localhost:8080/index.html](http://localhost:8080/index.html).
-- Copy your ID.
 - Click "Create Room" and enter a room name.
 - Open another browser instance at the same URL.
 - Click "Join Room" and enter the same room name.
