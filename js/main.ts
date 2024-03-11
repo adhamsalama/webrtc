@@ -85,11 +85,6 @@ function setUpLocalPeer() {
 
 // @ts-ignore
 const socket = io.connect();
-socket.on("connect", () => {
-  document.querySelector("#myId")!.innerHTML = Math.random()
-    .toString(36)
-    .substring(7);
-});
 
 startButton.onclick = async () => {
   const promptedRoom = prompt("Enter room name:");
