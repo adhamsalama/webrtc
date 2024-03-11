@@ -30,12 +30,12 @@ type CandidateMessage = {
   candidate: string;
 };
 const io = new Server(app);
-io.sockets.on("connection", function (socket: any) {
-  // convenience function to console.log server messages on the client
+io.sockets.on("connection", function (socket) {
   socket.on("message", function (message: Message) {
     console.log("Client said: ", message);
-    // for a real app, would be room-only (not broadcast)
-    socket.broadcast.emit("message", message);
+    socket.rooms.forEach((room) => {
+      socket.to(room).emit("message", message);
+    });
   });
 
   socket.on("createRoom", (room: string) => {
