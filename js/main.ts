@@ -63,7 +63,6 @@ function createPeerConnection() {
       remoteVideo.srcObject = event.streams[0];
       event.streams.forEach((stream) => {
         stream.onremovetrack = () => {
-          alert("onremovetrack");
           console.log("onremovetrack", event);
         };
       });
