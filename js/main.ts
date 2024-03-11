@@ -8,13 +8,6 @@ let isStarted = false;
 
 let room = "";
 
-const pcConfig = {
-  iceServers: [
-    {
-      urls: "stun:stun.l.google.com:19302",
-    },
-  ],
-};
 const constraints: MediaStreamConstraints = {
   video: true,
   audio: true,
@@ -174,8 +167,6 @@ socket.on("message", async function (message: Message) {
     handleRemoteHangup();
   }
 });
-
-////////////////////////////////////////////////
 
 function sendMessage(message: Message) {
   console.log("Client sending message: ", message);
