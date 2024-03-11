@@ -1,4 +1,4 @@
-Real Time Chat app with WebRTC and Node.js
+Real Time Videoconferencing app built with WebRTC and Node.js
 
 ## Install
 
