@@ -1,6 +1,7 @@
 "use strict";
 
 let localPeerConnection: RTCPeerConnection;
+let dataChannel: RTCDataChannel;
 let localStream: MediaStream;
 let remoteStream: MediaStream;
 
@@ -22,6 +23,11 @@ const startButton = document.getElementById("startButton") as HTMLButtonElement;
 const callButton = document.getElementById("callButton") as HTMLButtonElement;
 const hangupButton = document.getElementById(
   "hangupButton"
+) as HTMLButtonElement;
+const messages = document.getElementById("messages") as HTMLUListElement;
+const newMessage = document.getElementById("newMessage") as HTMLInputElement;
+const sendMessageButton = document.getElementById(
+  "sendMessage"
 ) as HTMLButtonElement;
 
 type Message =
@@ -62,6 +68,7 @@ function createPeerConnection() {
         };
       });
     };
+
     console.log("Created RTCPeerConnnection");
   } catch (e: any) {
     console.log("Failed to create PeerConnection, exception: " + e.message);
@@ -75,8 +82,6 @@ function setUpLocalPeer() {
     console.log(">>>>>> creating peer connection");
     createPeerConnection();
     localStream.getTracks().forEach((track) => {
-      console.log({ track });
-
       localPeerConnection.addTrack(track, localStream);
     });
     isStarted = true;
@@ -107,6 +112,14 @@ callButton.onclick = async () => {
 hangupButton.onclick = () => {
   hangup();
 };
+
+sendMessageButton.onclick = () => {
+  const message = newMessage.value;
+  dataChannel.send(message);
+  newMessage.value = "";
+  displayNewMessage("You: " + message);
+};
+
 socket.on("created", function (room: string) {
   console.log("Created room " + room);
 });
@@ -119,6 +132,11 @@ socket.on("join", function (room: string) {
 socket.on("joined", function (room: string) {
   console.log("joined: " + room);
 });
+function displayNewMessage(message: string) {
+  const newMessageElement = document.createElement("li");
+  newMessageElement.innerHTML = message;
+  messages.appendChild(newMessageElement);
+}
 
 // This client receives a message
 socket.on("message", async function (message: Message) {
@@ -127,22 +145,46 @@ socket.on("message", async function (message: Message) {
   if (message === "peerIsReady") {
     console.log("message=got user media, calling maybeStart()");
     setUpLocalPeer();
+    dataChannel = localPeerConnection.createDataChannel("dataChannel", {});
     const offerSessionDescription = await localPeerConnection.createOffer();
-    localPeerConnection.setLocalDescription(offerSessionDescription);
+    await localPeerConnection.setLocalDescription(offerSessionDescription);
     console.log("Sending offer to peer");
     sendMessage(offerSessionDescription);
+    dataChannel.onopen = (event) => {
+      console.log("dataChannel onopen", { event });
+    };
+    dataChannel.onmessage = (event) => {
+      console.log("dataChannel onmessage", event);
+      displayNewMessage(event.data);
+    };
+    dataChannel.onerror = (event) => {
+      console.log("dataChannel onerror", event);
+    };
   } else if ((message as RTCSessionDescription).type === "offer") {
     if (!isStarted) {
       console.log("Got offer");
       setUpLocalPeer();
     }
-    localPeerConnection.setRemoteDescription(
+    await localPeerConnection.setRemoteDescription(
       new RTCSessionDescription(message as RTCSessionDescriptionInit)
     );
     console.log("Sending answer to peer.");
     const answerSessionDescription = await localPeerConnection.createAnswer();
-    localPeerConnection.setLocalDescription(answerSessionDescription);
+    await localPeerConnection.setLocalDescription(answerSessionDescription);
     sendMessage(answerSessionDescription);
+    localPeerConnection.ondatachannel = (event) => {
+      dataChannel = event.channel;
+      dataChannel.onopen = (event) => {
+        console.log("dataChannel onopen", { event });
+      };
+      dataChannel.onmessage = (event: MessageEvent<string>) => {
+        console.log("dataChannel onmessage", event);
+        displayNewMessage(event.data);
+      };
+      dataChannel.onerror = (event) => {
+        console.log("dataChannel onerror", event);
+      };
+    };
   } else if (
     (message as RTCSessionDescription).type === "answer" &&
     isStarted
