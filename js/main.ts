@@ -141,9 +141,9 @@ function displayNewMessage(message: string) {
 // This client receives a message
 socket.on("message", async function (message: Message) {
   console.log("Client received message:", message);
-  // ? sent by peer after clickign call and getting user media
+  // ? sent by peer after clicking call and getting user media
   if (message === "peerIsReady") {
-    console.log("message=got user media, calling maybeStart()");
+    console.log("message=got user media");
     setUpLocalPeer();
     dataChannel = localPeerConnection.createDataChannel("dataChannel", {});
     const offerSessionDescription = await localPeerConnection.createOffer();
