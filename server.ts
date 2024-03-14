@@ -12,7 +12,10 @@ const app = http
       const file = await fs.readFile("./js/main.js");
       return res.end(file);
     }
-
+    if (req.url?.endsWith("/css/main.css")) {
+      const file = await fs.readFile("./css/main.css");
+      return res.end(file);
+    }
     return res.end();
   })
   .listen(8080);
