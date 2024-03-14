@@ -4,5 +4,30 @@ body {
 
 video {
   max-width: 100%;
-  width: 320px;
+  width: auto;
+  height: auto;
+}
+
+#rtc {
+  display: flex;
+  align-items: center;
+  gap: 50px;
+  justify-content: center;
+}
+
+#localVideoContainer {
+  display: flex;
+  flex-direction: column;
+  max-width: 20%;
+  max-height: 20%;
+}
+#remoteVideoContainer video {
+  min-width: 200px;
+  min-height: 240px;
+}
+
+#messagesContainer ul {
+  max-height: 300px;
+  overflow: auto;
+  list-style: none;
 }
