@@ -24,6 +24,12 @@ const callButton = document.getElementById("callButton") as HTMLButtonElement;
 const hangupButton = document.getElementById(
   "hangupButton"
 ) as HTMLButtonElement;
+const toggleLocalVideoButton = document.getElementById(
+  "toggleLocalVideo"
+) as HTMLButtonElement;
+const toggleLocalAudioButton = document.getElementById(
+  "toggleLocalAudio"
+) as HTMLButtonElement;
 const messages = document.getElementById("messages") as HTMLUListElement;
 const newMessage = document.getElementById("newMessage") as HTMLInputElement;
 const sendMessageButton = document.getElementById(
@@ -86,7 +92,10 @@ function setUpLocalPeer() {
     isStarted = true;
   }
 }
-
+navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
+  localVideo.srcObject = stream;
+  localStream = stream;
+});
 // @ts-ignore
 const socket = io.connect();
 
@@ -97,14 +106,10 @@ startButton.onclick = async () => {
   }
   room = promptedRoom;
   socket.emit("createRoom", room);
-  localStream = await navigator.mediaDevices.getUserMedia(constraints);
-  localVideo.srcObject = localStream;
 };
 callButton.onclick = async () => {
   room = prompt("Enter room name:") ?? "";
   socket.emit("joinRoom", room);
-  localStream = await navigator.mediaDevices.getUserMedia(constraints);
-  localVideo.srcObject = localStream;
   sendMessage("peerIsReady");
 };
 
@@ -112,11 +117,41 @@ hangupButton.onclick = () => {
   hangup();
 };
 
+toggleLocalVideoButton.onclick = () => {
+  const localTracks = localStream.getTracks();
+  const videoTrack = localTracks.find((track) => track.kind === "video");
+  if (!videoTrack) {
+    return;
+  }
+  if (videoTrack.enabled) {
+    videoTrack.enabled = false;
+    toggleLocalVideoButton.innerText = "Resume Video";
+  } else {
+    videoTrack.enabled = true;
+    toggleLocalVideoButton.innerText = "Puase Video";
+  }
+};
+
+toggleLocalAudioButton.onclick = () => {
+  const localTracks = localStream.getTracks();
+  const audioTrack = localTracks.find((track) => track.kind === "audio");
+  if (!audioTrack) {
+    return;
+  }
+  if (audioTrack.enabled) {
+    audioTrack.enabled = false;
+    toggleLocalAudioButton.innerText = "Resume Audio";
+  } else {
+    audioTrack.enabled = true;
+    toggleLocalAudioButton.innerText = "Pause Audio";
+  }
+};
+
 sendMessageButton.onclick = () => {
   const message = newMessage.value;
   dataChannel.send(message);
   newMessage.value = "";
-  displayNewMessage("You: " + message);
+  displayNewMessage(`Me: ${message}`, "right");
 };
 
 socket.on("created", function (room: string) {
@@ -131,10 +166,16 @@ socket.on("join", function (room: string) {
 socket.on("joined", function (room: string) {
   console.log("joined: " + room);
 });
-function displayNewMessage(message: string) {
+function displayNewMessage(
+  message: string,
+  alignment: "left" | "right" = "left"
+) {
   const newMessageElement = document.createElement("li");
+  newMessageElement.style.textAlign = alignment;
   newMessageElement.innerHTML = message;
   messages.appendChild(newMessageElement);
+  const hr = document.createElement("hr");
+  messages.appendChild(hr);
 }
 
 // This client receives a message
