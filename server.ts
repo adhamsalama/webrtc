@@ -16,7 +16,8 @@ const app = http
       const file = await fs.readFile("./css/main.css");
       return res.end(file);
     }
-    return res.end();
+    const file = await fs.readFile("./index.html");
+    return res.end(file);
   })
   .listen(8080);
 console.log("Listening on http://localhost:8080");
