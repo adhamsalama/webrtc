@@ -50,7 +50,9 @@ type CandidateMessage = {
 };
 function createPeerConnection() {
   try {
-    localPeerConnection = new RTCPeerConnection();
+    localPeerConnection = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
     localPeerConnection.onicecandidate = (event) => {
       console.log("icecandidate event: ", event);
       if (event.candidate) {
