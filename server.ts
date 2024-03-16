@@ -14,7 +14,7 @@ const app = http
     }
     if (req.url?.endsWith("/css/main.css")) {
       const file = await fs.readFile("./css/main.css");
-      return res.end(file);
+      return res.setHeader("Content-Type", "text/css").end(file);
     }
     const file = await fs.readFile("./index.html");
     return res.end(file);
