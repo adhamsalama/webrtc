@@ -4,6 +4,21 @@ let localPeerConnection: RTCPeerConnection;
 let dataChannel: RTCDataChannel;
 let localStream: MediaStream;
 let remoteStream: MediaStream;
+let localCatpureStream: MediaStream;
+let remoteStreams: MediaStream[] = [];
+const displayMediaOptions = {
+  video: {
+    displaySurface: "browser",
+  },
+  audio: {
+    suppressLocalAudioPlayback: false,
+  },
+  preferCurrentTab: false,
+  selfBrowserSurface: "exclude",
+  systemAudio: "include",
+  surfaceSwitching: "include",
+  monitorTypeSurfaces: "include",
+};
 
 let isStarted = false;
 
@@ -19,6 +34,12 @@ const sdpConstraints = {
 };
 const localVideo = document.querySelector("#localVideo") as HTMLVideoElement;
 const remoteVideo = document.querySelector("#remoteVideo") as HTMLVideoElement;
+const localScreenShare = document.querySelector(
+  "#localScreen"
+) as HTMLVideoElement;
+const remoteScreenShare = document.querySelector(
+  "#remoteScreen"
+) as HTMLVideoElement;
 const startButton = document.getElementById("startButton") as HTMLButtonElement;
 const callButton = document.getElementById("callButton") as HTMLButtonElement;
 const hangupButton = document.getElementById(
@@ -30,12 +51,44 @@ const toggleLocalVideoButton = document.getElementById(
 const toggleLocalAudioButton = document.getElementById(
   "toggleLocalAudio"
 ) as HTMLButtonElement;
+const toggleLocalScreenButton = document.getElementById(
+  "toggleLocalScreen"
+) as HTMLButtonElement;
 const messages = document.getElementById("messages") as HTMLUListElement;
 const newMessage = document.getElementById("newMessage") as HTMLInputElement;
 const sendMessageButton = document.getElementById(
   "sendMessage"
 ) as HTMLButtonElement;
-
+let localScreenCaptureEnabled = false;
+toggleLocalScreenButton.onclick = async () => {
+  await startCapture(displayMediaOptions);
+  localScreenCaptureEnabled = true;
+  console.log(
+    "adding capture stream to peer connection",
+    // @ts-ignore
+    `local stream length: ${localPeerConnection.getLocalStreams().length}`
+  );
+  localCatpureStream.getTracks().forEach((track) => {
+    console.log(`adding track ${track.label} to peer connection`);
+    try {
+      localPeerConnection.addTrack(track, localCatpureStream);
+    } catch (err) {
+      console.error(`Error adding capture track: ${err}`);
+    }
+  });
+  console.log(
+    "added capture stream to peer connection",
+    // @ts-ignore
+    `local stream length: ${localPeerConnection.getLocalStreams().length}`
+  );
+  const offerSessionDescription = await localPeerConnection.createOffer();
+  await localPeerConnection.setLocalDescription(offerSessionDescription);
+  console.log("Sending offer to peer");
+  sendMessage(offerSessionDescription);
+};
+type DataChannelMessage =
+  | string
+  | { type: string; data: { type: string; streamId: string } };
 type Message =
   | RTCSessionDescriptionInit
   | RTCIceCandidateInit
@@ -68,12 +121,27 @@ function createPeerConnection() {
     };
     localPeerConnection.ontrack = (event) => {
       console.log("ontrack", event);
-      remoteVideo.srcObject = event.streams[0];
+      if (!remoteStream) {
+        remoteStream = event.streams[0];
+        remoteVideo.srcObject = event.streams[0];
+        console.log("track label", event.track.label);
+        event.streams.forEach((stream) => {
+          stream.onremovetrack = () => {
+            console.log("onremovetrack", event);
+          };
+        });
+      }
       event.streams.forEach((stream) => {
-        stream.onremovetrack = () => {
-          console.log("onremovetrack", event);
-        };
+        const streamExists = remoteStreams.some(
+          (remoteStream) => remoteStream.id === stream.id
+        );
+        if (!streamExists) {
+          remoteStreams.push(stream);
+        }
       });
+      if (remoteStreams.length > 1) {
+        remoteScreenShare.srcObject = remoteStreams[1];
+      }
     };
 
     console.log("Created RTCPeerConnnection");
@@ -98,6 +166,23 @@ navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
   localVideo.srcObject = stream;
   localStream = stream;
 });
+
+async function startCapture(displayMediaOptions: any) {
+  let captureStream: MediaStream | null = null;
+
+  try {
+    captureStream = await navigator.mediaDevices.getDisplayMedia(
+      displayMediaOptions
+    );
+    localScreenShare.srcObject = captureStream;
+    localCatpureStream = captureStream;
+  } catch (err) {
+    console.error(`Error: ${err}`);
+  }
+
+  return captureStream;
+}
+
 // @ts-ignore
 const socket = io.connect();
 
@@ -106,11 +191,14 @@ startButton.onclick = async () => {
   if (!promptedRoom) {
     return;
   }
+  // await startCapture(displayMediaOptions);
+
   room = promptedRoom;
   socket.emit("createRoom", room);
 };
 callButton.onclick = async () => {
   room = prompt("Enter room name:") ?? "";
+  // await startCapture(displayMediaOptions);
   socket.emit("joinRoom", room);
   sendMessage("peerIsReady");
 };
@@ -197,16 +285,28 @@ socket.on("message", async function (message: Message) {
     };
     dataChannel.onmessage = (event) => {
       console.log("dataChannel onmessage", event);
-      displayNewMessage(event.data);
+      const msg: DataChannelMessage = event.data;
+      if (typeof msg === "string") {
+        displayNewMessage(msg as string);
+      }
+      const parsedMsg: DataChannelMessage = JSON.parse(msg as string);
+      // @ts-expect-error
+      remoteScreenShare.srcObject = parsedMsg.data.stream;
     };
     dataChannel.onerror = (event) => {
       console.log("dataChannel onerror", event);
     };
   } else if ((message as RTCSessionDescription).type === "offer") {
+    console.log("Got offer");
     if (!isStarted) {
-      console.log("Got offer");
       setUpLocalPeer();
     }
+    console.log(
+      `Local peer connection streams length: ${
+        // @ts-ignore
+        localPeerConnection.getLocalStreams().length
+      }`
+    );
     await localPeerConnection.setRemoteDescription(
       new RTCSessionDescription(message as RTCSessionDescriptionInit)
     );
@@ -232,7 +332,7 @@ socket.on("message", async function (message: Message) {
     isStarted
   ) {
     console.log("Got answer from peer, setting it as remote description");
-    localPeerConnection.setRemoteDescription(
+    await localPeerConnection.setRemoteDescription(
       new RTCSessionDescription(message as RTCSessionDescriptionInit)
     );
   } else if ((message as CandidateMessage).type === "candidate" && isStarted) {
