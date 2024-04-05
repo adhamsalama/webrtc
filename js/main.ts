@@ -287,11 +287,8 @@ socket.on("message", async function (message: Message) {
       console.log("dataChannel onmessage", event);
       const msg: DataChannelMessage = event.data;
       if (typeof msg === "string") {
-        displayNewMessage(msg as string);
+        displayNewMessage(msg);
       }
-      const parsedMsg: DataChannelMessage = JSON.parse(msg as string);
-      // @ts-expect-error
-      remoteScreenShare.srcObject = parsedMsg.data.stream;
     };
     dataChannel.onerror = (event) => {
       console.log("dataChannel onerror", event);
