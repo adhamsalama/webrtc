@@ -21,6 +21,7 @@ const displayMediaOptions = {
 };
 
 let isStarted = false;
+let id = Math.random().toString(16).slice(2);
 
 let room = "";
 
@@ -34,6 +35,7 @@ const sdpConstraints = {
 };
 const localVideo = document.querySelector("#localVideo") as HTMLVideoElement;
 const remoteVideo = document.querySelector("#remoteVideo") as HTMLVideoElement;
+const roomName = document.getElementById("room") as HTMLHeadingElement;
 const localScreenShare = document.querySelector(
   "#localScreen"
 ) as HTMLVideoElement;
@@ -89,12 +91,18 @@ toggleLocalScreenButton.onclick = async () => {
 type DataChannelMessage =
   | string
   | { type: string; data: { type: string; streamId: string } };
-type Message =
+type OutboundMessage =
   | RTCSessionDescriptionInit
   | RTCIceCandidateInit
   | CandidateMessage
   | "peerIsReady"
   | "bye";
+type InboundMessage = {
+  room: string;
+  userId: string;
+  message: OutboundMessage;
+};
+
 type CandidateMessage = {
   type: "candidate";
   label: number;
@@ -194,10 +202,12 @@ startButton.onclick = async () => {
   // await startCapture(displayMediaOptions);
 
   room = promptedRoom;
+  roomName.innerText = room;
   socket.emit("createRoom", room);
 };
 callButton.onclick = async () => {
   room = prompt("Enter room name:") ?? "";
+  roomName.innerText = room;
   // await startCapture(displayMediaOptions);
   socket.emit("joinRoom", room);
   sendMessage("peerIsReady");
@@ -269,10 +279,10 @@ function displayNewMessage(
 }
 
 // This client receives a message
-socket.on("message", async function (message: Message) {
+socket.on("message", async function (message: InboundMessage) {
   console.log("Client received message:", message);
   // ? sent by peer after clicking call and getting user media
-  if (message === "peerIsReady") {
+  if (message.message === "peerIsReady") {
     console.log("message=got user media");
     setUpLocalPeer();
     dataChannel = localPeerConnection.createDataChannel("dataChannel", {});
@@ -293,19 +303,13 @@ socket.on("message", async function (message: Message) {
     dataChannel.onerror = (event) => {
       console.log("dataChannel onerror", event);
     };
-  } else if ((message as RTCSessionDescription).type === "offer") {
+  } else if ((message.message as RTCSessionDescription).type === "offer") {
     console.log("Got offer");
     if (!isStarted) {
       setUpLocalPeer();
     }
-    console.log(
-      `Local peer connection streams length: ${
-        // @ts-ignore
-        localPeerConnection.getLocalStreams().length
-      }`
-    );
     await localPeerConnection.setRemoteDescription(
-      new RTCSessionDescription(message as RTCSessionDescriptionInit)
+      new RTCSessionDescription(message.message as RTCSessionDescriptionInit)
     );
     console.log("Sending answer to peer.");
     const answerSessionDescription = await localPeerConnection.createAnswer();
@@ -325,28 +329,36 @@ socket.on("message", async function (message: Message) {
       };
     };
   } else if (
-    (message as RTCSessionDescription).type === "answer" &&
+    (message.message as RTCSessionDescription).type === "answer" &&
     isStarted
   ) {
     console.log("Got answer from peer, setting it as remote description");
     await localPeerConnection.setRemoteDescription(
-      new RTCSessionDescription(message as RTCSessionDescriptionInit)
+      new RTCSessionDescription(message.message as RTCSessionDescriptionInit)
     );
-  } else if ((message as CandidateMessage).type === "candidate" && isStarted) {
+  } else if (
+    (message.message as CandidateMessage).type === "candidate" &&
+    isStarted
+  ) {
     console.log("Got ICE candidate from peer, adding it to local peer");
     const candidate = new RTCIceCandidate({
-      sdpMLineIndex: (message as CandidateMessage).label,
-      candidate: (message as CandidateMessage).candidate,
+      sdpMLineIndex: (message.message as CandidateMessage).label,
+      candidate: (message.message as CandidateMessage).candidate,
     });
     localPeerConnection.addIceCandidate(candidate);
-  } else if (message === "bye" && isStarted) {
+  } else if (message.message === "bye" && isStarted) {
     handleRemoteHangup();
   }
 });
 
-function sendMessage(message: Message) {
+function sendMessage(message: OutboundMessage) {
   console.log("Client sending message: ", message);
-  socket.emit("message", message);
+  const msg: InboundMessage = {
+    room,
+    userId: id,
+    message,
+  };
+  socket.emit("message", msg);
 }
 window.onbeforeunload = function () {
   sendMessage("bye");

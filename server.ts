@@ -21,12 +21,18 @@ const app = http
   })
   .listen(8080);
 console.log("Listening on http://localhost:8080");
-type Message =
+type OutboundMessage =
   | RTCSessionDescriptionInit
   | RTCIceCandidateInit
   | CandidateMessage
   | "peerIsReady"
   | "bye";
+type InboundMessage = {
+  room: string;
+  userId: string;
+  message: OutboundMessage;
+};
+
 type CandidateMessage = {
   type: "candidate";
   label: number;
@@ -35,7 +41,7 @@ type CandidateMessage = {
 };
 const io = new Server(app);
 io.sockets.on("connection", function (socket) {
-  socket.on("message", function (message: Message) {
+  socket.on("message", function (message: InboundMessage) {
     console.log("Client said: ", message);
     socket.rooms.forEach((room) => {
       socket.to(room).emit("message", message);
