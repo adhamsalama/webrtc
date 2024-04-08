@@ -43,9 +43,13 @@ const io = new Server(app);
 io.sockets.on("connection", function (socket) {
   socket.on("message", function (message: InboundMessage) {
     console.log("Client said: ", message);
-    socket.rooms.forEach((room) => {
-      socket.to(room).emit("message", message);
-    });
+    for (const room of socket.rooms) {
+      if (room == message.room) {
+        socket.to(room).emit("message", message);
+        return;
+      }
+    }
+    console.error(`Couldn't find room ${message.room}`);
   });
 
   socket.on("createRoom", (room: string) => {
