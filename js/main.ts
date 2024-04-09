@@ -85,16 +85,16 @@ toggleLocalScreenButton.onclick = async () => {
     const offerSessionDescription = await peer.pc.createOffer();
     await peer.pc.setLocalDescription(offerSessionDescription);
     console.log("Sending offer to peer");
-    sendMessage({ ...offerSessionDescription, toUserId: peer.userId });
+    sendMessage(offerSessionDescription, peer.userId);
   });
 };
 type DataChannelMessage =
   | string
   | { type: string; data: { type: string; streamId: string } };
 type OutboundMessage =
-  | (RTCSessionDescriptionInit & { toUserId: string })
-  | (RTCIceCandidateInit & { toUserId: string })
-  | (CandidateMessage & { toUserId: string })
+  | RTCSessionDescriptionInit
+  | RTCIceCandidateInit
+  | CandidateMessage
   | "peerIsReady"
   | "bye";
 type InboundMessage = {
@@ -120,13 +120,15 @@ function createPeerConnection(userId: string): Peer | undefined {
     localPeerConnection.onicecandidate = (event) => {
       console.log("icecandidate event: ", event);
       if (event.candidate) {
-        sendMessage({
-          type: "candidate",
-          label: event.candidate.sdpMLineIndex!,
-          id: event.candidate.sdpMid!,
-          candidate: event.candidate.candidate,
-          toUserId: peer.userId,
-        });
+        sendMessage(
+          {
+            type: "candidate",
+            label: event.candidate.sdpMLineIndex!,
+            id: event.candidate.sdpMid!,
+            candidate: event.candidate.candidate,
+          },
+          peer.userId
+        );
       } else {
         console.log("End of candidates.");
       }
@@ -320,7 +322,7 @@ socket.on("message", async function (message: InboundMessage) {
     const offerSessionDescription = await peer.pc.createOffer();
     await peer.pc.setLocalDescription(offerSessionDescription);
     console.log(`***Sending offer to peer ${message.userId}`);
-    sendMessage({ ...offerSessionDescription, toUserId: peer.userId });
+    sendMessage(offerSessionDescription, peer.userId);
     dataChannel.onopen = (event) => {
       console.log("dataChannel onopen", { event });
     };
@@ -372,7 +374,7 @@ socket.on("message", async function (message: InboundMessage) {
 
     const answerSessionDescription = await peer.pc.createAnswer();
     await peer.pc.setLocalDescription(answerSessionDescription);
-    sendMessage({ ...answerSessionDescription, toUserId: peer.userId });
+    sendMessage(answerSessionDescription, peer.userId);
   } else if (
     (message.message as RTCSessionDescription & { toUserId: string }).type ===
       "answer" &&
@@ -414,14 +416,14 @@ socket.on("message", async function (message: InboundMessage) {
   }
 });
 
-function sendMessage(message: OutboundMessage) {
+function sendMessage(message: OutboundMessage, toUserId?: string) {
   console.log("Client sending message: ", message);
   const msg: InboundMessage = {
     room,
     userId: id,
     message,
-    // @ts-ignore
-    toUserId: message.toUserId,
+    // @ts-expect-error
+    toUserId: message.toUserId ?? toUserId ?? "",
   };
   socket.emit("message", msg);
 }
