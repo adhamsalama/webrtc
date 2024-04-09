@@ -168,24 +168,22 @@ function createPeerConnection(userId: string): Peer | undefined {
 
 function setUpLocalPeer(userId: string): Peer | undefined {
   console.log(">>>>>>> setting up local peer", { isStarted });
-  if (true) {
-    console.log(">>>>>> creating peer connection");
-    const peer = createPeerConnection(userId);
-    if (!peer) {
-      alert(`Failed to create PeerConnection in setUpLocalPeer`);
-      return;
-    }
-    localStream.getTracks().forEach((track) => {
-      peer.pc.addTrack(track, localStream);
-    });
-    if (localCatpureStream) {
-      localCatpureStream.getTracks().forEach((track) => {
-        peer.pc.addTrack(track, localCatpureStream);
-      });
-    }
-    isStarted = true;
-    return peer;
+  console.log(">>>>>> creating peer connection");
+  const peer = createPeerConnection(userId);
+  if (!peer) {
+    alert(`Failed to create PeerConnection in setUpLocalPeer`);
+    return;
   }
+  localStream.getTracks().forEach((track) => {
+    peer.pc.addTrack(track, localStream);
+  });
+  if (localCatpureStream) {
+    localCatpureStream.getTracks().forEach((track) => {
+      peer.pc.addTrack(track, localCatpureStream);
+    });
+  }
+  isStarted = true;
+  return peer;
 }
 navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
   localVideo.srcObject = stream;
