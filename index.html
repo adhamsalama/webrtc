@@ -11,6 +11,8 @@
 <body>
 
   <h1>Realtime communication with WebRTC</h1>
+  Room Name: <h2 id="room"></h2>
+  User ID: <h2 id="id"></h2>
   <button id="startButton">Create Room</button>
   <button id="callButton">Join Room</button>
   <button id="hangupButton">Hangup</button>
@@ -22,8 +24,7 @@
       <button id="toggleLocalAudio">Pause Audio</button>
     </div>
     <div id="remoteVideoContainer">
-      <h2>Remote Video</h2>
-      <video id="remoteVideo" autoplay playsinline controls></video>
+      <h2>Remote Videos</h2>
     </div>
     <div id="messagesContainer">
       <h2>Messages</h2>
@@ -35,10 +36,6 @@
       <h2>Local Screen Share</h2>
       <video id="localScreen" autoplay playsinline controls></video>
       <button id="toggleLocalScreen">Toggle Screen Share</button>
-    </div>
-    <div id="remoteScreenShare">
-      <h2>Remote Screen Share</h2>
-      <video id="remoteScreen" autoplay playsinline controls></video>
     </div>
 
   </div>
