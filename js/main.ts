@@ -11,7 +11,7 @@ let localStream: MediaStream;
 let remoteStream: MediaStream;
 let localCatpureStream: MediaStream;
 let remoteStreams: MediaStream[] = [];
-let userIds: string[] = [];
+let userIds: Set<string> = new Set();
 const displayMediaOptions = {
   video: {
     displaySurface: "browser",
@@ -28,6 +28,7 @@ const displayMediaOptions = {
 
 let isStarted = false;
 let id = Math.random().toString(16).slice(2);
+(document.querySelector("#id") as HTMLHeadElement).innerText = id;
 
 let room = "";
 
@@ -75,14 +76,6 @@ toggleLocalScreenButton.onclick = async () => {
   await startCapture(displayMediaOptions);
   localScreenCaptureEnabled = true;
   peers = peers.map((p) => setUpLocalPeer(p.userId)!);
-  localCatpureStream.getTracks().forEach((track) => {
-    console.log(`adding track ${track.label} to peer connection`);
-    try {
-      peers.forEach((peer) => peer.pc.addTrack(track, localCatpureStream));
-    } catch (err) {
-      console.error(`Error adding capture track: ${err}`);
-    }
-  });
   peers.forEach(async (peer) => {
     const dataChannel = peer.pc.createDataChannel("dataChannel", {});
     peer.dc = dataChannel;
@@ -92,32 +85,22 @@ toggleLocalScreenButton.onclick = async () => {
     const offerSessionDescription = await peer.pc.createOffer();
     await peer.pc.setLocalDescription(offerSessionDescription);
     console.log("Sending offer to peer");
-    sendMessage(offerSessionDescription);
+    sendMessage({ ...offerSessionDescription, toUserId: peer.userId });
   });
-  /*
-  peers.forEach(async (peer) => {
-    peer.pc.close();
-    const dataChannel = peer.pc.createDataChannel("dataChannel", {});
-    peer.dc = dataChannel;
-    const offerSessionDescription = await peer.pc.createOffer();
-    await peer.pc.setLocalDescription(offerSessionDescription);
-    console.log("Sending offer to peer");
-    sendMessage(offerSessionDescription);
-  });
-  */
 };
 type DataChannelMessage =
   | string
   | { type: string; data: { type: string; streamId: string } };
 type OutboundMessage =
-  | RTCSessionDescriptionInit
-  | RTCIceCandidateInit
-  | CandidateMessage
+  | (RTCSessionDescriptionInit & { toUserId: string })
+  | (RTCIceCandidateInit & { toUserId: string })
+  | (CandidateMessage & { toUserId: string })
   | "peerIsReady"
   | "bye";
 type InboundMessage = {
   room: string;
   userId: string;
+  toUserId: string;
   message: OutboundMessage;
 };
 
@@ -142,6 +125,7 @@ function createPeerConnection(userId: string): Peer | undefined {
           label: event.candidate.sdpMLineIndex!,
           id: event.candidate.sdpMid!,
           candidate: event.candidate.candidate,
+          toUserId: peer.userId,
         });
       } else {
         console.log("End of candidates.");
@@ -149,43 +133,27 @@ function createPeerConnection(userId: string): Peer | undefined {
     };
     localPeerConnection.ontrack = (event) => {
       for (const stream of event.streams) {
+        console.log("streamId", stream.id);
         peer.streams.add(stream);
-      }
-      console.log("ontrack", event);
-      if (!remoteStream) {
-        remoteStream = event.streams[0];
-        const video = createRemoteVideoElement(userId);
-        video!.srcObject = event.streams[0];
-        // remoteVideo.srcObject = event.streams[0];
-        console.log("track label", event.track.label);
-        event.streams.forEach((stream) => {
-          stream.onremovetrack = () => {
-            console.log("onremovetrack", event);
-          };
-        });
-      }
-      event.streams.forEach((stream) => {
-        const streamExists = remoteStreams.some(
-          (remoteStream) => remoteStream.id === stream.id
-        );
-        if (!streamExists) {
-          remoteStreams.push(stream);
+        const videoId = `${peer.userId}-${stream.id}`;
+        const existingDiv = document.getElementById(videoId);
+        if (existingDiv) {
+          existingDiv.remove();
         }
-      });
-      // ! Needs update
-      if (remoteStreams.length > 1) {
-        remoteScreenShare.srcObject = remoteStreams[1];
+        const div = document.createElement("div");
+        div.id = videoId;
+        const header = document.createElement("h2");
+        header.innerText = peer.userId;
+        const video = document.createElement("video");
+        video.id = videoId;
+        video.autoplay = true;
+        video.playsInline = true;
+        video.srcObject = event.streams[0];
+        console.log("ontrack", event);
+        div.appendChild(header);
+        div.appendChild(video);
+        remoteVideoContainer.appendChild(div);
       }
-      /* localPeerConnection.ondatachannel = (event) => {
-        console.log("^^^qqqqqqqqqqqq before", { peer, peers });
-        event.channel.send("oi mate");
-        peer.dc = event.channel;
-        console.log("^^^qqqqqqqqq after", { peer, peers });
-        peer.dc.onmessage = (message: MessageEvent<string>) => {
-          displayNewMessage(message.data);
-        };
-      };
-      */
     };
     console.log("Created RTCPeerConnnection");
     return peer;
@@ -207,8 +175,12 @@ function setUpLocalPeer(userId: string): Peer | undefined {
     }
     localStream.getTracks().forEach((track) => {
       peer.pc.addTrack(track, localStream);
-      // localPeerConnections.forEach((pc) => pc.addTrack(track, localStream));
     });
+    if (localCatpureStream) {
+      localCatpureStream.getTracks().forEach((track) => {
+        peer.pc.addTrack(track, localCatpureStream);
+      });
+    }
     isStarted = true;
     return peer;
   }
@@ -337,6 +309,7 @@ socket.on("message", async function (message: InboundMessage) {
   console.log("Client received message:", message);
   // ? sent by peer after clicking call and getting user media
   if (message.message === "peerIsReady") {
+    console.log(`***Peer ${message.userId} is ready`);
     let peer = setUpLocalPeer(message.userId);
     if (!peer) {
       return;
@@ -346,8 +319,8 @@ socket.on("message", async function (message: InboundMessage) {
     peer = addPeer(peer);
     const offerSessionDescription = await peer.pc.createOffer();
     await peer.pc.setLocalDescription(offerSessionDescription);
-    console.log("Sending offer to peer");
-    sendMessage(offerSessionDescription);
+    console.log(`***Sending offer to peer ${message.userId}`);
+    sendMessage({ ...offerSessionDescription, toUserId: peer.userId });
     dataChannel.onopen = (event) => {
       console.log("dataChannel onopen", { event });
     };
@@ -361,18 +334,22 @@ socket.on("message", async function (message: InboundMessage) {
     dataChannel.onerror = (event) => {
       console.log("dataChannel onerror", event);
     };
-  } else if ((message.message as RTCSessionDescription).type === "offer") {
-    console.log("Got offer");
+  } else if (
+    (message.message as RTCSessionDescription & { toUserId: string }).type ===
+    "offer"
+  ) {
+    if (message.toUserId !== id) {
+      console.log(`*** Offer not mean for me`);
+      return;
+    }
+    console.log(`***Got offer from peer ${message.userId}`);
     let peer = setUpLocalPeer(message.userId);
     if (!peer) {
       alert("No peer for incoming offer");
       return;
     }
-    console.log("^^^before adding peer");
     peer = addPeer(peer);
-    console.log("^^^after adding peer");
     peer.pc.ondatachannel = (event) => {
-      console.log("^^^ondatachannel");
       const dc = event.channel;
       dc.onopen = (event) => {
         console.log("^^^dataChannel onopen", { event });
@@ -385,62 +362,52 @@ socket.on("message", async function (message: InboundMessage) {
         console.log("dataChannel onerror", event);
       };
       peers.find((p) => p.userId == message.userId)!.dc = dc;
-      console.log("^^^", { peerAtEnd: peer });
+      //peer.dc = dc;
     };
-    console.log("^^^after ondatachannel");
 
     await peer.pc.setRemoteDescription(
       new RTCSessionDescription(message.message as RTCSessionDescriptionInit)
     );
-    console.log("Sending answer to peer.");
+    console.log(`***Sending answer to peer ${message.userId}`);
+
     const answerSessionDescription = await peer.pc.createAnswer();
     await peer.pc.setLocalDescription(answerSessionDescription);
-    sendMessage(answerSessionDescription);
-    // const video = createRemoteVideoElement(message.userId);
+    sendMessage({ ...answerSessionDescription, toUserId: peer.userId });
   } else if (
-    (message.message as RTCSessionDescription).type === "answer" &&
+    (message.message as RTCSessionDescription & { toUserId: string }).type ===
+      "answer" &&
     isStarted
   ) {
-    addUserToList(message.userId);
+    if (message.toUserId !== id) {
+      console.log(`*** Answer not meant for me`);
+      return;
+    }
+    console.log(`***Got answer from peer ${message.userId}`);
     const peer = peers.find((peer) => peer.userId === message.userId);
     if (!peer) {
       alert("couldn't find peer");
       return;
     }
-    console.log("Got answer from peer, setting it as remote description");
     await peer.pc.setRemoteDescription(
       new RTCSessionDescription(message.message as RTCSessionDescriptionInit)
     );
-    peer.pc.ondatachannel = (event) => {
-      console.log("^^^ondatachannel");
-      const dc = event.channel;
-      dc.onopen = (event) => {
-        console.log("^^^dataChannel onopen", { event });
-      };
-      dc.onmessage = (event: MessageEvent<string>) => {
-        console.log("dataChannel onmessage", event);
-        displayNewMessage(event.data);
-      };
-      dc.onerror = (event) => {
-        console.log("dataChannel onerror", event);
-      };
-      peers.find((p) => p.userId == message.userId)!.dc = dc;
-      console.log("^^^", { peerAtEnd: peer });
-    };
   } else if (
     (message.message as CandidateMessage).type === "candidate" &&
     isStarted
   ) {
-    console.log("Got ICE candidate from peer, adding it to local peer");
     const candidate = new RTCIceCandidate({
       sdpMLineIndex: (message.message as CandidateMessage).label,
       candidate: (message.message as CandidateMessage).candidate,
     });
-    const peer = peers.find((peer) => peer.userId === message.userId);
-    if (!peer) {
+    if (message.toUserId !== id) {
       return;
     }
-    console.log("Adding candidate to local peer");
+    const peer = peers.find((peer) => peer.userId === message.userId);
+    if (!peer) {
+      alert("Peer not found");
+      return;
+    }
+    console.log("Adding candidate");
     peer.pc.addIceCandidate(candidate);
   } else if (message.message === "bye" && isStarted) {
     handleRemoteHangup();
@@ -453,6 +420,8 @@ function sendMessage(message: OutboundMessage) {
     room,
     userId: id,
     message,
+    // @ts-ignore
+    toUserId: message.toUserId,
   };
   socket.emit("message", msg);
 }
@@ -473,12 +442,6 @@ function handleRemoteHangup() {
 function stopRTC() {
   isStarted = false;
   peers.forEach((peer) => peer.pc.close());
-}
-
-function addUserToList(userId: string) {
-  if (!userIds.includes(userId)) {
-    userIds.push(userId);
-  }
 }
 
 function createRemoteVideoElement(userId: string) {
