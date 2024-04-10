@@ -80,7 +80,7 @@ toggleLocalScreenButton.onclick = async () => {
     const dataChannel = peer.pc.createDataChannel("dataChannel", {});
     peer.dc = dataChannel;
     peer.dc.onmessage = (message: MessageEvent<string>) => {
-      displayNewMessage(message.data);
+      displayNewMessage(JSON.parse(message.data) as DataChannelMessage);
     };
     const offerSessionDescription = await peer.pc.createOffer();
     await peer.pc.setLocalDescription(offerSessionDescription);
@@ -88,9 +88,7 @@ toggleLocalScreenButton.onclick = async () => {
     sendMessage(offerSessionDescription, peer.userId);
   });
 };
-type DataChannelMessage =
-  | string
-  | { type: string; data: { type: string; streamId: string } };
+type DataChannelMessage = { userId: string; data: string };
 type OutboundMessage =
   | RTCSessionDescriptionInit
   | RTCIceCandidateInit
@@ -255,12 +253,15 @@ toggleLocalAudioButton.onclick = () => {
     toggleLocalAudioButton.innerText = "Pause Audio";
   }
 };
-
 sendMessageButton.onclick = () => {
   const message = newMessage.value;
-  peers.forEach((peer) => peer.dc?.send(message));
+  peers.forEach((peer) =>
+    peer.dc?.send(
+      JSON.stringify({ userId: id, data: message } as DataChannelMessage)
+    )
+  );
   newMessage.value = "";
-  displayNewMessage(`Me: ${message}`, "right");
+  displayNewMessage({ userId: id, data: message }, "right");
 };
 
 socket.on("created", function (room: string) {
@@ -276,12 +277,14 @@ socket.on("joined", function (room: string) {
   console.log("joined: " + room);
 });
 function displayNewMessage(
-  message: string,
+  message: { userId: string; data: string },
   alignment: "left" | "right" = "left"
 ) {
   const newMessageElement = document.createElement("li");
   newMessageElement.style.textAlign = alignment;
-  newMessageElement.innerHTML = message;
+  newMessageElement.innerHTML = `${message.userId} ${
+    message.userId == id ? "(Me)" : ""
+  }: ${message.data}`;
   messages.appendChild(newMessageElement);
   const hr = document.createElement("hr");
   messages.appendChild(hr);
@@ -320,10 +323,7 @@ socket.on("message", async function (message: InboundMessage) {
     };
     dataChannel.onmessage = (event) => {
       console.log("dataChannel onmessage", event);
-      const msg: DataChannelMessage = event.data;
-      if (typeof msg === "string") {
-        displayNewMessage(msg);
-      }
+      displayNewMessage(JSON.parse(event.data) as DataChannelMessage);
     };
     dataChannel.onerror = (event) => {
       console.log("dataChannel onerror", event);
@@ -350,7 +350,7 @@ socket.on("message", async function (message: InboundMessage) {
       };
       dc.onmessage = (event: MessageEvent<string>) => {
         console.log("dataChannel onmessage", event);
-        displayNewMessage(event.data);
+        displayNewMessage(JSON.parse(event.data) as DataChannelMessage);
       };
       dc.onerror = (event) => {
         console.log("dataChannel onerror", event);
