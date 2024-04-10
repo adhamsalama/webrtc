@@ -100,7 +100,7 @@ type OutboundMessage =
 type InboundMessage = {
   room: string;
   userId: string;
-  toUserId: string;
+  toUserId?: string;
   message: OutboundMessage;
 };
 
@@ -133,28 +133,22 @@ function createPeerConnection(userId: string): Peer | undefined {
         console.log("End of candidates.");
       }
     };
+
     localPeerConnection.ontrack = (event) => {
       for (const stream of event.streams) {
-        console.log("streamId", stream.id);
         peer.streams.add(stream);
+        const userDiv = createOrGetUserDiv(peer.userId);
         const videoId = `${peer.userId}-${stream.id}`;
-        const existingDiv = document.getElementById(videoId);
-        if (existingDiv) {
-          existingDiv.remove();
+        let video = document.getElementById(videoId) as HTMLVideoElement | null;
+        if (!video) {
+          video = document.createElement("video");
+          video.autoplay = true;
+          video.playsInline = true;
         }
-        const div = document.createElement("div");
-        div.id = videoId;
-        const header = document.createElement("h2");
-        header.innerText = peer.userId;
-        const video = document.createElement("video");
         video.id = videoId;
-        video.autoplay = true;
-        video.playsInline = true;
         video.srcObject = event.streams[0];
-        console.log("ontrack", event);
-        div.appendChild(header);
-        div.appendChild(video);
-        remoteVideoContainer.appendChild(div);
+        userDiv.appendChild(video);
+        remoteVideoContainer.appendChild(userDiv);
       }
     };
     console.log("Created RTCPeerConnnection");
@@ -410,7 +404,7 @@ socket.on("message", async function (message: InboundMessage) {
     console.log("Adding candidate");
     peer.pc.addIceCandidate(candidate);
   } else if (message.message === "bye" && isStarted) {
-    handleRemoteHangup();
+    handleRemoteHangup(message.userId);
   }
 });
 
@@ -420,8 +414,7 @@ function sendMessage(message: OutboundMessage, toUserId?: string) {
     room,
     userId: id,
     message,
-    // @ts-expect-error
-    toUserId: message.toUserId ?? toUserId ?? "",
+    toUserId,
   };
   socket.emit("message", msg);
 }
@@ -430,34 +423,36 @@ window.onbeforeunload = function () {
 };
 function hangup() {
   console.log("Hanging up.");
-  stopRTC();
+  peers.forEach((p) => p.pc.close());
+  peers = [];
+  remoteVideoContainer.innerHTML = "<h2>Remote Videos</h2>";
   sendMessage("bye");
 }
 
-function handleRemoteHangup() {
-  console.log("Session terminated.");
-  stopRTC();
+function handleRemoteHangup(userId: string) {
+  document.getElementById(userId)?.remove();
+  stopRemoteRTC(userId);
 }
 
-function stopRTC() {
+function stopRemoteRTC(userId: string) {
   isStarted = false;
-  peers.forEach((peer) => peer.pc.close());
-}
-
-function createRemoteVideoElement(userId: string) {
-  const video = document.createElement("video");
-  video.autoplay = true;
-  video.playsInline = true;
-  video.controls = true;
-  video.id = `remote-video-${userId}`;
-  const remoteStream = remoteStreams.find((stream) => stream.id === userId);
-  if (!remoteStream) {
+  const peerIndex = peers.findIndex((p) => (p.userId = userId));
+  if (peerIndex != -1) {
     return;
   }
-  video.srcObject = remoteStream;
-  video.autoplay = true;
-  video.muted = true;
-  video.id = userId;
-  remoteVideoContainer.appendChild(video);
-  return video;
+  peers[peerIndex].pc.close();
+  peers.splice(peerIndex, 1);
+}
+
+function createOrGetUserDiv(id: string): HTMLDivElement {
+  const existingDiv = document.getElementById(id) as HTMLDivElement | null;
+  if (existingDiv) {
+    return existingDiv;
+  }
+  const div = document.createElement("div");
+  div.id = id;
+  const header = document.createElement("h2");
+  header.innerText = `User ${id}`;
+  div.appendChild(header);
+  return div;
 }
