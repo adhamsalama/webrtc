@@ -6,7 +6,6 @@ type Peer = {
   streams: Set<MediaStream>;
 };
 let peers: Peer[] = [];
-//let dataChannels: RTCDataChannel[];
 let localStream: MediaStream;
 let remoteStream: MediaStream;
 let localCatpureStream: MediaStream;
@@ -26,7 +25,6 @@ const displayMediaOptions = {
   monitorTypeSurfaces: "include",
 };
 
-let isStarted = false;
 let id = Math.random().toString(16).slice(2);
 (document.querySelector("#id") as HTMLHeadElement).innerText = id;
 
@@ -41,7 +39,6 @@ const sdpConstraints = {
   offerToReceiveVideo: true,
 };
 const localVideo = document.querySelector("#localVideo") as HTMLVideoElement;
-//const remoteVideo = document.querySelector("#remoteVideo") as HTMLVideoElement;
 const remoteVideoContainer = document.querySelector(
   "#remoteVideoContainer"
 ) as HTMLDivElement;
@@ -52,8 +49,7 @@ const localScreenShare = document.querySelector(
 const remoteScreenShare = document.querySelector(
   "#remoteScreen"
 ) as HTMLVideoElement;
-const startButton = document.getElementById("startButton") as HTMLButtonElement;
-const callButton = document.getElementById("callButton") as HTMLButtonElement;
+const joinButton = document.getElementById("joinButton") as HTMLButtonElement;
 const hangupButton = document.getElementById(
   "hangupButton"
 ) as HTMLButtonElement;
@@ -159,7 +155,7 @@ function createPeerConnection(userId: string): Peer | undefined {
 }
 
 function setUpLocalPeer(userId: string): Peer | undefined {
-  console.log(">>>>>>> setting up local peer", { isStarted });
+  console.log(">>>>>>> setting up local peer");
   console.log(">>>>>> creating peer connection");
   const peer = createPeerConnection(userId);
   if (!peer) {
@@ -174,7 +170,6 @@ function setUpLocalPeer(userId: string): Peer | undefined {
       peer.pc.addTrack(track, localCatpureStream);
     });
   }
-  isStarted = true;
   return peer;
 }
 navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
@@ -199,23 +194,18 @@ async function startCapture(displayMediaOptions: any) {
 }
 
 // @ts-ignore
-const socket = io.connect();
+const socket = io.connect() as {
+  emit: (to: string, data: any) => any;
+  on: (event: string, cb: (...args: any[]) => any) => any;
+};
 
-startButton.onclick = async () => {
-  const promptedRoom = prompt("Enter room name:");
-  if (!promptedRoom) {
+joinButton.onclick = async () => {
+  room = prompt("Enter room name:") ?? "";
+  if (!room) {
+    alert("Please enter a room name");
     return;
   }
-  // await startCapture(displayMediaOptions);
-
-  room = promptedRoom;
   roomName.innerText = room;
-  socket.emit("createRoom", room);
-};
-callButton.onclick = async () => {
-  room = prompt("Enter room name:") ?? "";
-  roomName.innerText = room;
-  // await startCapture(displayMediaOptions);
   socket.emit("joinRoom", room);
   sendMessage("peerIsReady");
 };
@@ -264,18 +254,11 @@ sendMessageButton.onclick = () => {
   displayNewMessage({ userId: id, data: message }, "right");
 };
 
-socket.on("created", function (room: string) {
-  console.log("Created room " + room);
-});
-
-socket.on("join", function (room: string) {
-  console.log("Another peer made a request to join room " + room);
-  console.log("This peer is the initiator of room " + room + "!");
-});
-
 socket.on("joined", function (room: string) {
   console.log("joined: " + room);
+  joinButton.disabled = true;
 });
+
 function displayNewMessage(
   message: { userId: string; data: string },
   alignment: "left" | "right" = "left"
@@ -356,7 +339,6 @@ socket.on("message", async function (message: InboundMessage) {
         console.log("dataChannel onerror", event);
       };
       peers.find((p) => p.userId == message.userId)!.dc = dc;
-      //peer.dc = dc;
     };
 
     await peer.pc.setRemoteDescription(
@@ -369,8 +351,7 @@ socket.on("message", async function (message: InboundMessage) {
     sendMessage(answerSessionDescription, peer.userId);
   } else if (
     (message.message as RTCSessionDescription & { toUserId: string }).type ===
-      "answer" &&
-    isStarted
+    "answer"
   ) {
     if (message.toUserId !== id) {
       console.log(`*** Answer not meant for me`);
@@ -385,10 +366,7 @@ socket.on("message", async function (message: InboundMessage) {
     await peer.pc.setRemoteDescription(
       new RTCSessionDescription(message.message as RTCSessionDescriptionInit)
     );
-  } else if (
-    (message.message as CandidateMessage).type === "candidate" &&
-    isStarted
-  ) {
+  } else if ((message.message as CandidateMessage).type === "candidate") {
     const candidate = new RTCIceCandidate({
       sdpMLineIndex: (message.message as CandidateMessage).label,
       candidate: (message.message as CandidateMessage).candidate,
@@ -403,7 +381,7 @@ socket.on("message", async function (message: InboundMessage) {
     }
     console.log("Adding candidate");
     peer.pc.addIceCandidate(candidate);
-  } else if (message.message === "bye" && isStarted) {
+  } else if (message.message === "bye") {
     handleRemoteHangup(message.userId);
   }
 });
@@ -425,8 +403,9 @@ function hangup() {
   console.log("Hanging up.");
   peers.forEach((p) => p.pc.close());
   peers = [];
-  remoteVideoContainer.innerHTML = "<h2>Remote Videos</h2>";
+  remoteVideoContainer.innerHTML = "";
   sendMessage("bye");
+  joinButton.disabled = false;
 }
 
 function handleRemoteHangup(userId: string) {
@@ -435,7 +414,6 @@ function handleRemoteHangup(userId: string) {
 }
 
 function stopRemoteRTC(userId: string) {
-  isStarted = false;
   const peerIndex = peers.findIndex((p) => (p.userId = userId));
   if (peerIndex == -1) {
     return;

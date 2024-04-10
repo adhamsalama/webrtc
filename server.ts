@@ -52,12 +52,6 @@ io.sockets.on("connection", function (socket) {
     console.error(`Couldn't find room ${message.room}`);
   });
 
-  socket.on("createRoom", (room: string) => {
-    socket.join(room);
-    console.log("Client ID " + socket.id + " created room " + room);
-    socket.emit("created", room, socket.id);
-  });
-
   socket.on("joinRoom", (room: string) => {
     console.log("Client ID " + socket.id + " joined room " + room);
     io.sockets.in(room).emit("join", room);
