@@ -451,6 +451,7 @@ function createOrGetUserDiv(id: string): HTMLDivElement {
   }
   const div = document.createElement("div");
   div.id = id;
+  div.className = "remoteUser";
   const header = document.createElement("h2");
   header.innerText = `User ${id}`;
   div.appendChild(header);

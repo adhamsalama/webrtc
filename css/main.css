@@ -10,6 +10,7 @@ video {
 
 #rtc {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 50px;
   justify-content: center;
@@ -25,7 +26,14 @@ video {
   min-width: 200px;
   min-height: 240px;
 }
-
+#remoteVideoContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+}
+.remoteUser {
+  width: 25%;
+}
 #messagesContainer ul {
   max-height: 300px;
   overflow: auto;
