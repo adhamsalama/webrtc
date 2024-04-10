@@ -437,7 +437,7 @@ function handleRemoteHangup(userId: string) {
 function stopRemoteRTC(userId: string) {
   isStarted = false;
   const peerIndex = peers.findIndex((p) => (p.userId = userId));
-  if (peerIndex != -1) {
+  if (peerIndex == -1) {
     return;
   }
   peers[peerIndex].pc.close();
