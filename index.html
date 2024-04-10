@@ -18,13 +18,17 @@
   <button id="hangupButton">Hangup</button>
   <div id="rtc">
     <div id="localVideoContainer">
-      <h2>Local Video</h2>
+      <h2>Local Streams</h2>
       <video id="localVideo" autoplay muted playsinline controls></video>
       <button id="toggleLocalVideo">Puase Video</button>
       <button id="toggleLocalAudio">Pause Audio</button>
+      <div id="localScreenShare">
+        <h2>Local Screen Share</h2>
+        <video id="localScreen" autoplay playsinline controls></video>
+        <button id="toggleLocalScreen">Toggle Screen Share</button>
+      </div>
     </div>
     <div id="remoteVideoContainer">
-      <h2>Remote Videos</h2>
     </div>
     <div id="messagesContainer">
       <h2>Messages</h2>
@@ -32,15 +36,7 @@
       <textarea name="message" id="newMessage"></textarea>
       <button id="sendMessage">Send</button>
     </div>
-    <div id="localScreenShare">
-      <h2>Local Screen Share</h2>
-      <video id="localScreen" autoplay playsinline controls></video>
-      <button id="toggleLocalScreen">Toggle Screen Share</button>
-    </div>
-
   </div>
-
-  <!-- This file is automatically added/served when running "node index.js". -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
   <script src="js/main.js"></script>
