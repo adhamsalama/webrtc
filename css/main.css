@@ -189,6 +189,39 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
+/* ── Fullscreen button overlay ─────────────────────────────── */
+.tile-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.remoteUser:hover .tile-overlay,
+#localVideoContainer:hover .tile-overlay {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .tile-overlay { opacity: 1; }
+}
+
+.fullscreen-btn {
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border-radius: 9999px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s;
+}
+.fullscreen-btn:hover { background: rgba(0, 0, 0, 0.8); }
+.fullscreen-btn .material-icons { font-size: 18px; }
+
 /* ── Screen share overlay ──────────────────────────────────── */
 #localScreenShare {
   display: none;

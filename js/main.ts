@@ -160,6 +160,15 @@ function createPeerConnection(userId: string): Peer | undefined {
           video.autoplay = true;
           video.playsInline = true;
           tile.appendChild(video);
+          const overlay = document.createElement("div");
+          overlay.className = "tile-overlay";
+          const fsBtn = document.createElement("button");
+          fsBtn.className = "fullscreen-btn";
+          fsBtn.title = "Fullscreen";
+          fsBtn.innerHTML = '<span class="material-icons">fullscreen</span>';
+          fsBtn.onclick = () => video!.requestFullscreen();
+          overlay.appendChild(fsBtn);
+          tile.appendChild(overlay);
         }
         video.srcObject = stream;
       }
@@ -272,6 +281,8 @@ toggleLocalAudioButton.onclick = () => {
     toggleLocalAudioButton.classList.remove("active");
   }
 };
+(document.getElementById("localFullscreen") as HTMLButtonElement).onclick = () => localVideo.requestFullscreen();
+
 const messagesContainer = document.getElementById("messagesContainer") as HTMLDivElement;
 const chatToggle = document.getElementById("chatToggle") as HTMLButtonElement;
 const chatClose = document.getElementById("chatClose") as HTMLButtonElement;
