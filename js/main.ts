@@ -71,6 +71,7 @@ let localScreenCaptureEnabled = false;
 toggleLocalScreenButton.onclick = async () => {
   await startCapture(displayMediaOptions);
   localScreenCaptureEnabled = true;
+  document.getElementById("localScreenShare")?.classList.add("visible");
   peers = peers.map((p) => setUpLocalPeer(p.userId)!);
   peers.forEach(async (peer) => {
     const dataChannel = peer.pc.createDataChannel("dataChannel", {});
@@ -225,7 +226,7 @@ toggleLocalVideoButton.onclick = () => {
     toggleLocalVideoButton.innerText = "Resume Video";
   } else {
     videoTrack.enabled = true;
-    toggleLocalVideoButton.innerText = "Puase Video";
+    toggleLocalVideoButton.innerText = "Pause Video";
   }
 };
 

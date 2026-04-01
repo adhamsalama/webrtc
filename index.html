@@ -1,44 +1,52 @@
 <!DOCTYPE html>
+<html lang="en">
 
 <head>
-
-  <title>Realtime communication with WebRTC</title>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebRTC Conference</title>
   <link rel="stylesheet" href="/css/main.css" />
-
 </head>
 
 <body>
 
-  <h1>Realtime communication with WebRTC</h1>
-  <div id="metadata">
-    Room Name: <span id="room"></span>
-    <br>
-    User ID: <span id="id"></span>
-  </div>
-  <button id="joinButton">Join Room</button>
-  <button id="hangupButton">Hangup</button>
+  <header>
+    <span class="app-title">WebRTC Conference</span>
+    <div class="status-chips">
+      <span class="chip">Room: <span id="room">—</span></span>
+      <span class="chip">ID: <span id="id">—</span></span>
+      <button id="joinButton">Join Room</button>
+      <button id="hangupButton" class="btn-danger">Hangup</button>
+    </div>
+  </header>
+
   <div id="rtc">
     <div id="localVideoContainer">
-      <h2>Local Streams</h2>
-      <video id="localVideo" autoplay muted playsinline controls></video>
-      <button id="toggleLocalVideo">Puase Video</button>
-      <button id="toggleLocalAudio">Pause Audio</button>
+      <h2>You</h2>
+      <video id="localVideo" autoplay muted playsinline></video>
+      <div class="controls">
+        <button id="toggleLocalVideo">Pause Video</button>
+        <button id="toggleLocalAudio">Pause Audio</button>
+        <button id="toggleLocalScreen">Share Screen</button>
+      </div>
       <div id="localScreenShare">
-        <h2>Local Screen Share</h2>
-        <video id="localScreen" autoplay playsinline controls></video>
-        <button id="toggleLocalScreen">Toggle Screen Share</button>
+        <h3>Screen Share</h3>
+        <video id="localScreen" autoplay playsinline></video>
       </div>
     </div>
-    <div id="remoteVideoContainer">
-    </div>
+
+    <div id="remoteVideoContainer"></div>
+
     <div id="messagesContainer">
-      <h2>Messages</h2>
+      <h2>Chat</h2>
       <ul id="messages"></ul>
-      <textarea name="message" id="newMessage"></textarea>
-      <button id="sendMessage">Send</button>
+      <div class="message-input-row">
+        <textarea name="message" id="newMessage" placeholder="Type a message…" rows="2"></textarea>
+        <button id="sendMessage">Send</button>
+      </div>
     </div>
   </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
   <script src="js/main.js"></script>
