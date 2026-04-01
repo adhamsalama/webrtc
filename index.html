@@ -4,47 +4,76 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebRTC Conference</title>
+  <title>WebRTC Meet</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link rel="stylesheet" href="/css/main.css" />
 </head>
 
 <body>
 
   <header>
-    <span class="app-title">WebRTC Conference</span>
-    <div class="status-chips">
+    <div class="header-left">
+      <span class="app-title">WebRTC Meet</span>
+    </div>
+    <div class="header-center">
       <span class="chip">Room: <span id="room">—</span></span>
+    </div>
+    <div class="header-right">
       <span class="chip">ID: <span id="id">—</span></span>
-      <button id="joinButton">Join Room</button>
-      <button id="hangupButton" class="btn-danger">Hangup</button>
+      <button id="joinButton" class="btn-join">Join</button>
+      <button id="chatToggle" class="btn-icon-header" title="In-call messages">
+        <span class="material-icons">chat</span>
+      </button>
     </div>
   </header>
 
   <div id="rtc">
-    <div id="localVideoContainer">
-      <h2>You</h2>
-      <video id="localVideo" autoplay muted playsinline></video>
-      <div class="controls">
-        <button id="toggleLocalVideo">Pause Video</button>
-        <button id="toggleLocalAudio">Pause Audio</button>
-        <button id="toggleLocalScreen">Share Screen</button>
-      </div>
+    <div id="videoArea">
+      <div id="remoteVideoContainer"></div>
+
       <div id="localScreenShare">
-        <h3>Screen Share</h3>
+        <div class="screen-label">Your screen</div>
         <video id="localScreen" autoplay playsinline></video>
       </div>
-    </div>
 
-    <div id="remoteVideoContainer"></div>
-
-    <div id="messagesContainer">
-      <h2>Chat</h2>
-      <ul id="messages"></ul>
-      <div class="message-input-row">
-        <textarea name="message" id="newMessage" placeholder="Type a message…" rows="2"></textarea>
-        <button id="sendMessage">Send</button>
+      <div id="localVideoContainer">
+        <video id="localVideo" autoplay muted playsinline></video>
+        <div class="local-label">You</div>
       </div>
     </div>
+
+    <div id="messagesContainer">
+      <div class="chat-header">
+        <span>In-call messages</span>
+        <button id="chatClose" class="btn-icon-header" title="Close">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+      <ul id="messages"></ul>
+      <div class="message-input-row">
+        <textarea id="newMessage" placeholder="Send a message to everyone" rows="1"></textarea>
+        <button id="sendMessage" class="btn-send" title="Send">
+          <span class="material-icons">send</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="controlBar">
+    <div class="ctrl-group">
+      <button id="toggleLocalAudio" class="ctrl-btn" title="Mute">
+        <span class="material-icons">mic</span>
+      </button>
+      <button id="toggleLocalVideo" class="ctrl-btn" title="Turn off camera">
+        <span class="material-icons">videocam</span>
+      </button>
+      <button id="toggleLocalScreen" class="ctrl-btn" title="Share screen">
+        <span class="material-icons">present_to_all</span>
+      </button>
+    </div>
+    <button id="hangupButton" class="ctrl-btn ctrl-hangup" title="Leave call">
+      <span class="material-icons">call_end</span>
+    </button>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

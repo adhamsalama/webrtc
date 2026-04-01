@@ -1,4 +1,12 @@
 "use strict";
+
+window.onerror = (msg, src, line, col, err) => {
+  alert(`JS Error: ${msg}\n${src}:${line}:${col}\n${err}`);
+};
+window.onunhandledrejection = (event) => {
+  alert(`Unhandled promise rejection: ${event.reason}`);
+};
+
 type Peer = {
   userId: string;
   pc: RTCPeerConnection;
@@ -132,18 +140,28 @@ function createPeerConnection(userId: string): Peer | undefined {
     localPeerConnection.ontrack = (event) => {
       for (const stream of event.streams) {
         peer.streams.add(stream);
-        const userDiv = createOrGetUserDiv(peer.userId);
-        const videoId = `${peer.userId}-${stream.id}`;
+        const tileId = `${peer.userId}-${stream.id}`;
+        let tile = document.getElementById(tileId) as HTMLDivElement | null;
+        if (!tile) {
+          tile = document.createElement("div");
+          tile.id = tileId;
+          tile.className = "remoteUser";
+          tile.dataset.userId = peer.userId;
+          const label = document.createElement("h2");
+          label.textContent = `User ${peer.userId}`;
+          tile.appendChild(label);
+          remoteVideoContainer.appendChild(tile);
+        }
+        const videoId = `${tileId}-video`;
         let video = document.getElementById(videoId) as HTMLVideoElement | null;
         if (!video) {
           video = document.createElement("video");
+          video.id = videoId;
           video.autoplay = true;
           video.playsInline = true;
+          tile.appendChild(video);
         }
-        video.id = videoId;
-        video.srcObject = event.streams[0];
-        userDiv.appendChild(video);
-        remoteVideoContainer.appendChild(userDiv);
+        video.srcObject = stream;
       }
     };
     console.log("Created RTCPeerConnnection");
@@ -173,10 +191,16 @@ function setUpLocalPeer(userId: string): Peer | undefined {
   }
   return peer;
 }
-navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
-  localVideo.srcObject = stream;
-  localStream = stream;
-});
+if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+  alert("navigator.mediaDevices is unavailable. The page must be served over HTTPS (or localhost) for camera/mic access to work.");
+} else {
+  navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
+    localVideo.srcObject = stream;
+    localStream = stream;
+  }).catch((err) => {
+    alert(`getUserMedia error: ${err.name}: ${err.message}`);
+  });
+}
 
 async function startCapture(displayMediaOptions: any) {
   let captureStream: MediaStream | null = null;
@@ -188,7 +212,7 @@ async function startCapture(displayMediaOptions: any) {
     localScreenShare.srcObject = captureStream;
     localCatpureStream = captureStream;
   } catch (err) {
-    console.error(`Error: ${err}`);
+    alert(`getDisplayMedia error: ${err}`);
   }
 
   return captureStream;
@@ -223,10 +247,12 @@ toggleLocalVideoButton.onclick = () => {
   }
   if (videoTrack.enabled) {
     videoTrack.enabled = false;
-    toggleLocalVideoButton.innerText = "Resume Video";
+    toggleLocalVideoButton.querySelector(".material-icons")!.textContent = "videocam_off";
+    toggleLocalVideoButton.classList.add("active");
   } else {
     videoTrack.enabled = true;
-    toggleLocalVideoButton.innerText = "Pause Video";
+    toggleLocalVideoButton.querySelector(".material-icons")!.textContent = "videocam";
+    toggleLocalVideoButton.classList.remove("active");
   }
 };
 
@@ -238,12 +264,20 @@ toggleLocalAudioButton.onclick = () => {
   }
   if (audioTrack.enabled) {
     audioTrack.enabled = false;
-    toggleLocalAudioButton.innerText = "Resume Audio";
+    toggleLocalAudioButton.querySelector(".material-icons")!.textContent = "mic_off";
+    toggleLocalAudioButton.classList.add("active");
   } else {
     audioTrack.enabled = true;
-    toggleLocalAudioButton.innerText = "Pause Audio";
+    toggleLocalAudioButton.querySelector(".material-icons")!.textContent = "mic";
+    toggleLocalAudioButton.classList.remove("active");
   }
 };
+const messagesContainer = document.getElementById("messagesContainer") as HTMLDivElement;
+const chatToggle = document.getElementById("chatToggle") as HTMLButtonElement;
+const chatClose = document.getElementById("chatClose") as HTMLButtonElement;
+chatToggle.onclick = () => messagesContainer.classList.toggle("open");
+chatClose.onclick = () => messagesContainer.classList.remove("open");
+
 sendMessageButton.onclick = () => {
   const message = newMessage.value;
   peers.forEach((peer) =>
@@ -288,6 +322,7 @@ let globalDC: RTCDataChannel;
 // This client receives a message
 socket.on("message", async function (message: InboundMessage) {
   console.log("Client received message:", message);
+  try {
   // ? sent by peer after clicking call and getting user media
   if (message.message === "peerIsReady") {
     console.log(`***Peer ${message.userId} is ready`);
@@ -385,6 +420,9 @@ socket.on("message", async function (message: InboundMessage) {
   } else if (message.message === "bye") {
     handleRemoteHangup(message.userId);
   }
+  } catch (err) {
+    alert(`Error handling socket message: ${err}`);
+  }
 });
 
 function sendMessage(message: OutboundMessage, toUserId?: string) {
@@ -410,7 +448,7 @@ function hangup() {
 }
 
 function handleRemoteHangup(userId: string) {
-  document.getElementById(userId)?.remove();
+  document.querySelectorAll<HTMLElement>(`[data-user-id="${userId}"]`).forEach(el => el.remove());
   stopRemoteRTC(userId);
 }
 
